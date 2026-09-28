@@ -43,6 +43,8 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Static file hosting for images and assets
 const PROJECTS_ROOT = path.resolve('E:/stickman-video-automation/Projects');
 app.use('/projects-media', express.static(PROJECTS_ROOT));
+const DEMO_ROOT = path.resolve('E:/stickman-video-automation/Demo');
+app.use('/demo-media', express.static(DEMO_ROOT));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Request logging (sanitized)

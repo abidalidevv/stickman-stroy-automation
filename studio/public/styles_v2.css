@@ -1136,3 +1136,103 @@ body {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .telemetry-pills { display: none; }
 }
+/* ==================== CAPCUT KINETIC CAPTIONS & STYLING ==================== */
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bebas+Neue&family=Luckiest+Guy&family=Montserrat:wght@700;800;900&display=swap');
+
+.caption-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 32px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  z-index: 25;
+  transition: bottom 0.15s ease-out;
+}
+
+.caption-overlay.draggable {
+  cursor: ns-resize;
+  pointer-events: auto;
+}
+
+.caption-text {
+  text-align: center;
+  max-width: 88%;
+  line-height: 1.35;
+  font-weight: 800;
+  display: inline-block;
+  user-select: none;
+}
+
+.caption-word {
+  display: inline-block;
+  margin: 0 4px;
+  transition: color 0.12s ease;
+  position: relative;
+}
+
+.caption-word.active.anim-bounce {
+  animation: captionWordBounce 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.caption-word.active.anim-glow {
+  animation: captionWordGlow 0.25s ease-out forwards;
+}
+
+.caption-word.active.anim-fade {
+  animation: captionWordFade 0.18s ease-out forwards;
+}
+
+.caption-word.active.box-style {
+  padding: 3px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  animation: captionWordBounce 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes captionWordBounce {
+  0% { transform: scale(0.92); }
+  50% { transform: scale(1.18); }
+  100% { transform: scale(1.08); }
+}
+
+@keyframes captionWordGlow {
+  0% { opacity: 0.8; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes captionWordFade {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Captions Preset Pill Buttons */
+.caption-preset-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.caption-preset-btn:hover {
+  border-color: var(--cyan);
+  background: rgba(0, 240, 255, 0.08);
+}
+
+.caption-preset-btn.active {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan-glow);
+}

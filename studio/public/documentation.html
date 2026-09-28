@@ -915,6 +915,52 @@ ffmpeg.exe -y -f concat -safe 0 -i concat_list.txt -i voiceover.mp3 -i backgroun
         </tbody>
       </table>
     </section>
+    
+    <!-- Section: Advanced Production Features -->
+    <section id="advanced-features" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">⚡</div>
+        <h2 class="section-title">New Production Engines: Audio, Captions & Fleet Batching</h2>
+      </div>
+
+      <div class="card-grid">
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--cyan);">🎙️ Audio Track & Voiceover Director</div>
+          <div class="card-desc">
+            Directly attach or upload voiceover (.mp3, .wav, .m4a) and background music.
+            The engine automatically probes the exact duration with FFprobe and calculates the recommended prompt & image count across all pacing presets (1/4s, 2/4s, 3/4s, 4/4s).
+            Background music volume is ducked by default to 7% with customizable slider.
+          </div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--emerald);">💬 Subtitles & Kinetic Captions Engine</div>
+          <div class="card-desc">
+            CapCut-style animated kinetic subtitles overlaid in real-time on the video player canvas.
+            Features 6 preset templates (CapCut Yellow, Cyber Cyan, Viral Box, Neon Purple, Clean Cinema, Red Impact) with custom fonts (Montserrat, Bebas Neue, Anton, Bangers, Outfit), font size slider, stroke outline, shadow, and draggable vertical positioning.
+          </div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--violet-light);">🚀 Intelligent Worker Fleet Calculator</div>
+          <div class="card-desc">
+            Automatically calculates required workers: <code>W = ceil(Total_Prompts / 50)</code>.
+            Splits workers evenly between Meta.ai and Flow (e.g. 330 prompts = 7 workers: 4 Meta + 3 Flow; 600 prompts = 12 workers: 6 Meta + 6 Flow).
+            Enforces a 10-worker concurrency safety limit: Batch 1 runs W01..W10, while Batch 2 reuses/recycles logged-in worker profiles for the remaining images.
+          </div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--amber);">🔑 1-Time 10-Worker Login Assistant & Groq Pool</div>
+          <div class="card-desc">
+            Step 6 provides an interactive 1-time login launcher for workers W01 through W10.
+            Opens Chrome with Meta.ai & Flow tabs preloaded to save persistent cookies.
+            Groq Multi-API Keys Pool allows entering 3-5 keys with automatic round-robin request distribution and instant 429 rate-limit failover.
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Section 10: Audit & Flaws -->
     <section id="audit-findings" class="doc-section">
       <div class="section-header">

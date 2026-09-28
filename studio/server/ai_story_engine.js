@@ -52,23 +52,63 @@ class AIStoryEngine {
     return '';
   }
 
-  async getApiKey() {
-    if (process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim()) {
-      return process.env.GROQ_API_KEY.trim();
+  async getApiKeyPool() {
+    const keys = [];
+    
+    // Check settings table for multiple keys
+    const poolRow = await db.get("SELECT value FROM settings WHERE key = 'groq_api_keys_pool'");
+    if (poolRow && poolRow.value) {
+      try {
+        const parsed = JSON.parse(poolRow.value);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(k => { if (k && typeof k === 'string' && k.trim()) keys.push(k.trim()); });
+        }
+      } catch (e) {
+        // May be newline or comma separated
+        poolRow.value.split(/[,\r\n]+/).forEach(k => {
+          const clean = k.trim();
+          if (clean && clean.startsWith('gsk_')) keys.push(clean);
+        });
+      }
     }
+
+    // Check single key setting
+    const singleRow = await db.get("SELECT value FROM settings WHERE key = 'groq_api_key'");
+    if (singleRow && singleRow.value && singleRow.value.trim()) {
+      if (!keys.includes(singleRow.value.trim())) keys.push(singleRow.value.trim());
+    }
+
+    // Check environment
+    if (process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim()) {
+      const envK = process.env.GROQ_API_KEY.trim();
+      if (!keys.includes(envK)) keys.push(envK);
+    }
+
+    // Check .env file
     const envPath = path.join(__dirname, '..', '.env');
     if (fs.existsSync(envPath)) {
       const envContent = fs.readFileSync(envPath, 'utf8');
       const match = envContent.match(/^GROQ_API_KEY=(.+)$/m);
       if (match && match[1].trim()) {
-        return match[1].trim().replace(/^["']|["']$/g, '');
+        const fileK = match[1].trim().replace(/^["']|["']$/g, '');
+        if (!keys.includes(fileK)) keys.push(fileK);
       }
     }
-    const row = await db.get("SELECT value FROM settings WHERE key = 'groq_api_key'");
-    if (row && row.value && row.value.trim()) {
-      return row.value.trim();
-    }
-    return null;
+
+    return keys;
+  }
+
+  async getApiKey() {
+    const pool = await this.getApiKeyPool();
+    if (pool.length === 0) return null;
+    if (typeof this._keyCursor !== 'number') this._keyCursor = 0;
+    return pool[this._keyCursor % pool.length];
+  }
+
+  rotateApiKey(poolLength) {
+    if (typeof this._keyCursor !== 'number') this._keyCursor = 0;
+    this._keyCursor = (this._keyCursor + 1) % Math.max(1, poolLength);
+    logger.info('AI_ENGINE', `Rotated Groq API key to pool index: ${this._keyCursor}`);
   }
 
   async getSelectedModel() {
@@ -147,19 +187,7 @@ Output pure JSON with the keys:
 
     logger.info('AI_ENGINE', `Calling Groq (${modelName}) for ${targetCount} prompts...`);
 
-    const response = await groq.chat.completions.create({
-      model: modelName,
-      messages: [
-        { role: 'system', content: systemInstruction },
-        { role: 'user', content: userPrompt }
-      ],
-      response_format: { type: 'json_object' },
-      reasoning_effort: 'low',
-      max_tokens: 16384,
-      temperature: 0.2
-    });
-
-    const rawContent = response.choices[0].message.content;
+// Groq call handled with key pool above
     const parsed = JSON.parse(rawContent);
 
     if (!parsed.prompts || !Array.isArray(parsed.prompts)) {

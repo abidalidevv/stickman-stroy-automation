@@ -1,4 +1,376 @@
 
+// =============================================
+// FLEET CALCULATOR & BATCH SCHEDULER
+// =============================================
+async function loadFleetCalculation() {
+  if (!activeProjectId) return;
+  try {
+    const res = await fetch(`/api/v1/projects/${activeProjectId}/workers/calculate-fleet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quota_per_worker: 50, max_concurrent: 10 })
+    });
+    const data = await res.json();
+    if (!data.success) return;
+
+    document.getElementById('calcTotalPrompts').textContent = data.total_prompts;
+    document.getElementById('calcWorkersNeeded').textContent = data.total_workers_needed;
+    document.getElementById('calcProviderSplit').textContent = `${data.meta_workers} Meta + ${data.flow_workers} Flow`;
+    document.getElementById('calcConcurrencyPlan').textContent = data.total_batches > 1 
+      ? `${data.active_now_batch_1} Active / ${data.queued_for_recycle} Queued (${data.total_batches} Batches)`
+      : `All ${data.total_workers_needed} Active in Batch 1`;
+
+    const container = document.getElementById('fleetBatchesContainer');
+    if (container && data.total_batches > 1) {
+      container.style.display = 'block';
+      container.innerHTML = `
+        <div style="font-weight: 700; color: var(--cyan); margin-bottom: 6px;">Batch Execution Queue:</div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <div class="badge badge-emerald">Batch 1: 10 Workers (Prompts 1 - 500) Active Immediate</div>
+          <div class="badge badge-amber">Batch 2: ${data.total_workers_needed - 10} Workers (Recycled W01..W${String(data.total_workers_needed - 10).padStart(2,'0')})</div>
+        </div>
+      `;
+    }
+  } catch (err) {
+    console.warn('loadFleetCalculation error:', err);
+  }
+}
+
+async function calculateAndDispatchFleet() {
+  if (!activeProjectId) {
+    showToast('Select a project first', 'warn');
+    return;
+  }
+  showToast('Optimizing prompt allocation across worker fleet...', 'info');
+  try {
+    const res = await fetch(`/api/v1/projects/${activeProjectId}/workers/dispatch-fleet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quota_per_worker: 50, max_concurrent: 10, auto_launch: false })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      await loadWorkersStatus();
+      await loadWorkersProcesses();
+      await loadFleetCalculation();
+    } else {
+      showToast(data.error || 'Failed to dispatch fleet', 'error');
+    }
+  } catch (err) {
+    showToast(`Dispatch error: ${err.message}`, 'error');
+  }
+}
+
+// =============================================
+// 10-WORKER LOGIN ASSISTANT & GROQ POOL
+// =============================================
+async function refreshFleetStatus() {
+  try {
+    const res = await fetch('/api/v1/workers/fleet-status');
+    const data = await res.json();
+    const grid = document.getElementById('workersFleetStatusGrid');
+    if (!grid || !data.workers) return;
+
+    grid.innerHTML = data.workers.map(w => {
+      const isAuth = w.authenticated;
+      const statusBadge = isAuth 
+        ? '<span class="badge badge-emerald" style="font-size: 10px;">✓ Session Saved</span>'
+        : '<span class="badge badge-amber" style="font-size: 10px;">⏳ Setup Required</span>';
+
+      return `
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-family: var(--font-mono); font-weight: 700; color: #fff;">${w.id}</span>
+            <span class="badge badge-cyan" style="font-size: 10px;">${w.provider.toUpperCase()}</span>
+          </div>
+          <div style="margin-bottom: 8px;">${statusBadge}</div>
+          <button class="btn btn-secondary" onclick="openWorkerLogin('${w.id}', '${w.provider}')" style="width: 100%; padding: 4px 8px; font-size: 11px;">
+            🔑 Open Login
+          </button>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.warn('refreshFleetStatus error:', err);
+  }
+}
+
+async function openWorkerLogin(workerId, provider) {
+  showToast(`Opening 1-time login browser for ${workerId} (${provider})...`, 'info');
+  try {
+    const res = await fetch('/api/v1/workers/login-assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ worker_id: workerId, provider })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      setTimeout(refreshFleetStatus, 4000);
+    } else {
+      showToast(data.error || 'Failed to open login window', 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function loadGroqKeyPool() {
+  try {
+    const res = await fetch('/api/v1/ai/key-pool');
+    const data = await res.json();
+    const badge = document.getElementById('groqKeyCountBadge');
+    if (badge) badge.textContent = `${data.key_count} Keys in Pool`;
+    const status = document.getElementById('groqPoolStatusText');
+    if (status) status.textContent = `Active cursor: Key #${(data.active_cursor || 0) + 1}`;
+  } catch (err) {}
+}
+
+async function saveGroqKeyPool() {
+  const input = document.getElementById('groqKeysPoolInput');
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) {
+    showToast('Enter at least one Groq API key', 'warn');
+    return;
+  }
+  const keys = raw.split(/[\r\n,]+/).map(k => k.trim()).filter(k => k.startsWith('gsk_'));
+  if (keys.length === 0) {
+    showToast('Invalid format. Keys must start with gsk_', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/v1/ai/key-pool', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keys })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      input.value = '';
+      loadGroqKeyPool();
+    } else {
+      showToast(data.error || 'Failed to save keys', 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+
+// =============================================
+// MASTER AUDIO & VOICEOVER MANAGEMENT
+// =============================================
+async function loadProjectAudio() {
+  if (!activeProjectId) return;
+  try {
+    const res = await fetch(`/api/v1/projects/${activeProjectId}/audio`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const voInput = document.getElementById('voFilePathInput');
+    if (voInput && data.voiceover_path) voInput.value = data.voiceover_path;
+
+    const bgmInput = document.getElementById('bgmFilePathInput');
+    if (bgmInput && data.music_path) bgmInput.value = data.music_path;
+
+    const bgmSlider = document.getElementById('bgmVolumeSlider');
+    const bgmLabel = document.getElementById('bgmVolumeDisplay');
+    if (bgmSlider && data.music_volume !== undefined) {
+      const pct = Math.round(data.music_volume * 100);
+      bgmSlider.value = pct;
+      if (bgmLabel) bgmLabel.textContent = pct + '%';
+    }
+
+    const dur = data.voiceover_duration || 0;
+    const textEl = document.getElementById('audioDurationText');
+    const badgeEl = document.getElementById('audioDurationBadge');
+    const tagEl = document.getElementById('voDetectedTag');
+
+    if (dur > 0) {
+      if (textEl) textEl.textContent = `VO: ${data.voiceover_display} (${dur.toFixed(1)}s)`;
+      if (badgeEl) badgeEl.style.borderColor = 'var(--emerald)';
+      if (tagEl) tagEl.style.display = 'inline';
+
+      // Update Audio Player Elements
+      const audioEl = document.getElementById('timelineAudioElement');
+      if (audioEl && data.voiceover_path) {
+        audioEl.src = resolveMediaUrl(data.voiceover_path);
+        audioEl.load();
+      }
+
+      // Populate Pacing Calculation Grid
+      const rec = data.recommended_prompts || {};
+      const grid = document.getElementById('pacingGridBadges');
+      if (grid) {
+        grid.innerHTML = `
+          <div class="badge badge-cyan" style="font-size: 11px; padding: 4px 8px;">1/4s: ${rec['1/4s'] || 0} images (4.0s/img)</div>
+          <div class="badge badge-emerald" style="font-size: 11px; padding: 4px 8px;">2/4s: ${rec['2/4s'] || 0} images (2.0s/img)</div>
+          <div class="badge badge-violet" style="font-size: 11px; padding: 4px 8px;">3/4s: ${rec['3/4s'] || 0} images (1.33s/img)</div>
+          <div class="badge badge-amber" style="font-size: 11px; padding: 4px 8px;">4/4s: ${rec['4/4s'] || 0} images (1.0s/img)</div>
+        `;
+      }
+
+      const summary = document.getElementById('pacingCalcSummary');
+      if (summary) {
+        summary.innerHTML = `Voiceover detected: <strong>${data.voiceover_display}</strong>. At standard <strong>2/4s</strong> pacing, you need <strong>${rec['2/4s']} images</strong>. At fast <strong>3/4s</strong> pacing, you need <strong>${rec['3/4s']} images</strong>.`;
+      }
+    } else {
+      if (textEl) textEl.textContent = 'No Audio Attached';
+      if (badgeEl) badgeEl.style.borderColor = 'var(--border-accent)';
+      if (tagEl) tagEl.style.display = 'none';
+    }
+  } catch (err) {
+    console.warn('loadProjectAudio failed:', err);
+  }
+}
+
+async function attachLocalAudio(trackType) {
+  if (!activeProjectId) {
+    showToast('Select an active project first', 'warn');
+    return;
+  }
+  const isVO = (trackType === 'VOICEOVER');
+  const inputEl = document.getElementById(isVO ? 'voFilePathInput' : 'bgmFilePathInput');
+  const filePath = inputEl ? inputEl.value.trim() : '';
+
+  if (!filePath) {
+    showToast(`Please enter a file path for ${trackType}`, 'warn');
+    return;
+  }
+
+  showToast(`Probing ${trackType} audio file...`, 'info');
+  try {
+    const res = await fetch(`/api/v1/projects/${activeProjectId}/audio/attach`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_path: filePath, track_type: trackType })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`${trackType} attached! Duration: ${data.duration_display}`, 'success');
+      await loadProjectAudio();
+      if (isVO) await loadTimeline();
+    } else {
+      showToast(data.error || 'Failed to attach audio', 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function uploadAudioFile(fileInput, trackType) {
+  if (!activeProjectId) {
+    showToast('Select an active project first', 'warn');
+    return;
+  }
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('audio', file);
+  formData.append('track_type', trackType);
+
+  showToast(`Uploading ${file.name} and detecting duration...`, 'info');
+  try {
+    const res = await fetch(`/api/v1/projects/${activeProjectId}/audio/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`${trackType} uploaded! Duration: ${data.duration_display}`, 'success');
+      await loadProjectAudio();
+      if (trackType === 'VOICEOVER') await loadTimeline();
+    } else {
+      showToast(data.error || 'Upload failed', 'error');
+    }
+  } catch (err) {
+    showToast(`Upload error: ${err.message}`, 'error');
+  }
+}
+
+function updateBgmVolume(val) {
+  const pct = parseInt(val, 10);
+  const lbl = document.getElementById('bgmVolumeDisplay');
+  if (lbl) lbl.textContent = pct + '%';
+  const bgmEl = document.getElementById('bgmAudioElement');
+  if (bgmEl) bgmEl.volume = pct / 100;
+}
+
+
+// =============================================
+// STUDIO CAPTION ENGINE INITIALIZATION
+// =============================================
+let captionEngine = null;
+
+function initCaptionEngine() {
+  if (typeof StudioCaptionEngine !== 'undefined') {
+    captionEngine = new StudioCaptionEngine('captionOverlay', 'captionText');
+    window.captionEngine = captionEngine;
+    captionEngine.enableDrag((newBottom) => {
+      const slider = document.getElementById('captionMarginSlider');
+      if (slider) slider.value = newBottom;
+      const lbl = document.getElementById('captionMarginLabel');
+      if (lbl) lbl.textContent = newBottom + 'px';
+    });
+  }
+}
+
+function toggleCaptionsMaster() {
+  if (!captionEngine) return;
+  const newState = !captionEngine.enabled;
+  captionEngine.setEnabled(newState);
+  const btn = document.getElementById('btnToggleCaptions');
+  if (btn) {
+    btn.textContent = newState ? '✓ Captions ON' : '✕ Captions OFF';
+    btn.className = newState ? 'btn btn-primary' : 'btn btn-secondary';
+  }
+  const wrap = document.getElementById('captionControlsWrap');
+  if (wrap) wrap.style.opacity = newState ? '1' : '0.4';
+  showToast(newState ? 'Captions enabled' : 'Captions disabled', 'info');
+}
+
+function applyCaptionPreset(presetName, btnEl) {
+  if (!captionEngine) return;
+  captionEngine.applyPreset(presetName);
+  document.querySelectorAll('.caption-preset-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+
+  // Sync inputs with preset
+  const st = captionEngine.style;
+  const fSelect = document.getElementById('captionFontSelect');
+  if (fSelect) fSelect.value = st.fontFamily;
+  const sSlider = document.getElementById('captionFontSizeSlider');
+  if (sSlider) {
+    sSlider.value = st.fontSize;
+    document.getElementById('captionFontSizeLabel').textContent = st.fontSize + 'px';
+  }
+  const hCol = document.getElementById('captionHighlightColor');
+  if (hCol) {
+    hCol.value = st.highlightColor;
+    document.getElementById('captionHighlightHex').textContent = st.highlightColor.toUpperCase();
+  }
+  const aSelect = document.getElementById('captionAnimSelect');
+  if (aSelect) aSelect.value = st.animation;
+  const strSlider = document.getElementById('captionStrokeSlider');
+  if (strSlider) strSlider.value = st.strokeWidth;
+  showToast(`Applied ${presetName.replace('_', ' ')} caption style`, 'success');
+}
+
+function updateCaptionStyle(styleObj) {
+  if (!captionEngine) return;
+  captionEngine.updateStyle(styleObj);
+  if (styleObj.highlightColor) {
+    const hex = document.getElementById('captionHighlightHex');
+    if (hex) hex.textContent = styleObj.highlightColor.toUpperCase();
+  }
+}
+
+
 function resolveMediaUrl(filePath) {
   if (!filePath) return '';
   if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('data:')) return filePath;
@@ -735,6 +1107,7 @@ async function loadTimeline() {
     const res = await fetch(`/api/v1/projects/${activeProjectId}/timeline`);
     const rawTl = await res.json();
     timelineItems = Array.isArray(rawTl) ? rawTl : (rawTl.items || []);
+    if (window.captionEngine) window.captionEngine.loadScenes(timelineItems);
 
     const audioEl = document.getElementById('timelineAudioElement');
     if (currentProjectData?.voiceover_path) {
@@ -784,6 +1157,7 @@ function initPlayerListeners() {
     const totalDur = timelineItems.length > 0 ? (timelineItems[timelineItems.length - 1].end_time || 1) : (audio.duration || 1);
     const pct = Math.min((curTime / totalDur) * 100, 100);
     document.getElementById('timelineScrubberFill').style.width = `${pct}%`;
+    if (window.captionEngine) window.captionEngine.renderAtTime(curTime);
 
     // Find active scene
     const activeIdx = timelineItems.findIndex(item => curTime >= (item.start_time || 0) && curTime < (item.end_time || 99999));

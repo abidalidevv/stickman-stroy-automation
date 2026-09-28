@@ -1,5 +1,27 @@
+const multer = require("multer");
 const express = require('express');
 const router = express.Router();
+
+// --- AUDIO UPLOAD CONFIGURATION ---
+const audioStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    try {
+      const proj = await db.get('SELECT directory_path FROM projects WHERE id = ?', [req.params.id]);
+      const dir = proj ? path.join(proj.directory_path, 'audio') : path.resolve('E:/stickman-video-automation/uploads');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    } catch(e) {
+      cb(e, null);
+    }
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.mp3';
+    const field = (req.body.track_type || file.fieldname || '').toLowerCase() === 'music' ? 'bg_music' : 'voiceover';
+    cb(null, `${field}_${Date.now()}${ext}`);
+  }
+});
+const audioUpload = multer({ storage: audioStorage });
+
 const fs = require('fs');
 const path = require('path');
 const db = require('./db');
@@ -172,6 +194,121 @@ router.put('/projects/:id/timeline/sync', async (req, res) => {
   }
 });
 
+
+// --- VOICE & BACKGROUND AUDIO MANAGEMENT ---
+router.post('/projects/:id/audio/upload', audioUpload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No audio file uploaded' });
+    const trackType = (req.body.track_type || 'VOICEOVER').toUpperCase();
+    const filePath = req.file.path;
+    const probe = await renderEngine.probeMedia(filePath);
+    const duration = parseFloat(probe.format.duration || 0);
+
+    const recommended = {
+      '1/4s': Math.round(duration * 0.25),
+      '2/4s': Math.round(duration * 0.50),
+      '3/4s': Math.round(duration * 0.75),
+      '4/4s': Math.round(duration * 1.00),
+      '5/4s': Math.round(duration * 1.25)
+    };
+
+    if (trackType === 'VOICEOVER') {
+      await db.run('UPDATE projects SET voiceover_path = ?, voiceover_duration = ?, updated_at = datetime("now") WHERE id = ?', [filePath, duration, req.params.id]);
+    } else {
+      const vol = req.body.volume !== undefined ? parseFloat(req.body.volume) : 0.07;
+      await db.run('UPDATE projects SET music_path = ?, music_volume = ?, updated_at = datetime("now") WHERE id = ?', [filePath, vol, req.params.id]);
+    }
+
+    res.json({
+      success: true,
+      file_path: filePath,
+      file_name: req.file.filename,
+      track_type: trackType,
+      duration,
+      duration_display: `${Math.floor(duration / 60)}m ${(duration % 60).toFixed(1)}s`,
+      sample_rate: probe.streams[0] ? probe.streams[0].sample_rate : '44100',
+      recommended_prompts: recommended
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/projects/:id/audio/attach', async (req, res) => {
+  try {
+    const { file_path, track_type = 'VOICEOVER', music_volume = 0.07, manual_duration } = req.body;
+    if (!file_path) return res.status(400).json({ error: 'file_path is required' });
+
+    let resolvedPath = file_path;
+    if (!fs.existsSync(resolvedPath)) {
+      const demoCandidate = path.resolve('E:/stickman-video-automation/Demo', path.basename(file_path));
+      if (fs.existsSync(demoCandidate)) resolvedPath = demoCandidate;
+      else return res.status(404).json({ error: `Audio file not found at: ${file_path}` });
+    }
+
+    let duration = 0;
+    if (manual_duration && parseFloat(manual_duration) > 0) {
+      duration = parseFloat(manual_duration);
+    } else {
+      const probe = await renderEngine.probeMedia(resolvedPath);
+      duration = parseFloat(probe.format.duration || 0);
+    }
+
+    const recommended = {
+      '1/4s': Math.round(duration * 0.25),
+      '2/4s': Math.round(duration * 0.50),
+      '3/4s': Math.round(duration * 0.75),
+      '4/4s': Math.round(duration * 1.00),
+      '5/4s': Math.round(duration * 1.25)
+    };
+
+    if (track_type.toUpperCase() === 'VOICEOVER') {
+      await db.run('UPDATE projects SET voiceover_path = ?, voiceover_duration = ?, updated_at = datetime("now") WHERE id = ?', [resolvedPath, duration, req.params.id]);
+    } else {
+      await db.run('UPDATE projects SET music_path = ?, music_volume = ?, updated_at = datetime("now") WHERE id = ?', [resolvedPath, parseFloat(music_volume) || 0.07, req.params.id]);
+    }
+
+    res.json({
+      success: true,
+      file_path: resolvedPath,
+      track_type: track_type.toUpperCase(),
+      duration,
+      duration_display: `${Math.floor(duration / 60)}m ${(duration % 60).toFixed(1)}s`,
+      recommended_prompts: recommended
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/projects/:id/audio', async (req, res) => {
+  try {
+    const project = await db.get('SELECT voiceover_path, voiceover_duration, music_path, music_volume, pacing_preset FROM projects WHERE id = ?', [req.params.id]);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    const dur = project.voiceover_duration || 0;
+    const recommended = {
+      '1/4s': Math.round(dur * 0.25),
+      '2/4s': Math.round(dur * 0.50),
+      '3/4s': Math.round(dur * 0.75),
+      '4/4s': Math.round(dur * 1.00),
+      '5/4s': Math.round(dur * 1.25)
+    };
+
+    res.json({
+      voiceover_path: project.voiceover_path,
+      voiceover_duration: dur,
+      voiceover_display: dur > 0 ? `${Math.floor(dur / 60)}m ${(dur % 60).toFixed(1)}s` : '0s',
+      music_path: project.music_path,
+      music_volume: project.music_volume || 0.07,
+      pacing_preset: project.pacing_preset || '2/4s',
+      recommended_prompts: recommended
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/projects/:id/timeline', async (req, res) => {
   try {
     const result = await timelineManager.getTimeline(req.params.id);
@@ -286,6 +423,55 @@ router.get('/ai/master-prompt-default', (req, res) => {
   }
 });
 
+
+// --- GROQ MULTI-API KEY POOL MANAGEMENT ---
+router.get('/ai/key-pool', async (req, res) => {
+  try {
+    const pool = await aiEngine.getApiKeyPool();
+    const masked = pool.map(k => {
+      if (k.length <= 10) return '***';
+      return `${k.slice(0, 6)}...${k.slice(-4)}`;
+    });
+    res.json({
+      success: true,
+      key_count: pool.length,
+      keys_masked: masked,
+      active_cursor: aiEngine._keyCursor || 0
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/ai/key-pool', async (req, res) => {
+  try {
+    const { keys } = req.body;
+    if (!keys || !Array.isArray(keys)) {
+      return res.status(400).json({ error: 'keys array is required' });
+    }
+
+    const cleanKeys = keys
+      .map(k => (typeof k === 'string' ? k.trim() : ''))
+      .filter(k => k && k.startsWith('gsk_'));
+
+    if (cleanKeys.length === 0) {
+      return res.status(400).json({ error: 'At least one valid Groq API key (starts with gsk_) is required' });
+    }
+
+    await db.run('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ("groq_api_keys_pool", ?, datetime("now"))', [JSON.stringify(cleanKeys)]);
+    // Also save first key as default
+    await db.run('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ("groq_api_key", ?, datetime("now"))', [cleanKeys[0]]);
+
+    res.json({
+      success: true,
+      message: `Saved ${cleanKeys.length} Groq API keys to pool`,
+      key_count: cleanKeys.length
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/ai/models', async (req, res) => {
   try {
     const selected = await aiEngine.getSelectedModel();
@@ -316,6 +502,192 @@ router.post('/ai/model-config', async (req, res) => {
 });
 
 // --- WORKER REGISTRY & BRIDGE ---
+
+// --- DYNAMIC WORKER FLEET CALCULATOR & BATCH SCHEDULER ---
+router.post('/projects/:id/workers/calculate-fleet', async (req, res) => {
+  try {
+    const { quota_per_worker = 50, max_concurrent = 10 } = req.body;
+    const prompts = await db.all('SELECT id, prompt_index FROM prompts WHERE project_id = ? ORDER BY prompt_index ASC', [req.params.id]);
+    const N = prompts.length;
+    const quota = Math.max(10, parseInt(quota_per_worker, 10) || 50);
+    const maxConc = Math.max(1, Math.min(10, parseInt(max_concurrent, 10) || 10));
+
+    const W = Math.max(1, Math.ceil(N / quota));
+    const metaCount = Math.ceil(W / 2);
+    const flowCount = Math.floor(W / 2);
+    const activeCount = Math.min(W, maxConc);
+    const queuedWorkers = Math.max(0, W - maxConc);
+    const totalBatches = Math.ceil(W / maxConc);
+
+    const plan = [];
+    for (let i = 1; i <= W; i++) {
+      const padded = String(((i - 1) % 10) + 1).padStart(2, '0');
+      const physicalWorkerId = `W${padded}`;
+      const provider = (i % 2 === 1) ? 'meta' : 'flow';
+      const batchNum = Math.ceil(i / maxConc);
+      const startIdx = (i - 1) * quota + 1;
+      const endIdx = Math.min(N, i * quota);
+
+      plan.push({
+        slot_number: i,
+        virtual_worker_id: `Worker-V${String(i).padStart(2, '0')}`,
+        physical_worker_id: physicalWorkerId,
+        provider,
+        batch: batchNum,
+        status: batchNum === 1 ? 'READY_TO_LAUNCH' : 'QUEUED_FOR_RECYCLE',
+        prompt_range: { start: startIdx, end: endIdx, count: Math.max(0, endIdx - startIdx + 1) }
+      });
+    }
+
+    res.json({
+      success: true,
+      project_id: req.params.id,
+      total_prompts: N,
+      quota_per_worker: quota,
+      total_workers_needed: W,
+      meta_workers: metaCount,
+      flow_workers: flowCount,
+      max_concurrent_workers: maxConc,
+      active_now_batch_1: activeCount,
+      queued_for_recycle: queuedWorkers,
+      total_batches: totalBatches,
+      plan
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/projects/:id/workers/dispatch-fleet', async (req, res) => {
+  try {
+    const { quota_per_worker = 50, max_concurrent = 10, auto_launch = false } = req.body;
+    const prompts = await db.all('SELECT id, prompt_index FROM prompts WHERE project_id = ? ORDER BY prompt_index ASC', [req.params.id]);
+    const N = prompts.length;
+    if (N === 0) return res.status(400).json({ error: 'No prompts found in project to dispatch' });
+
+    const quota = Math.max(10, parseInt(quota_per_worker, 10) || 50);
+    const maxConc = Math.max(1, Math.min(10, parseInt(max_concurrent, 10) || 10));
+    const W = Math.max(1, Math.ceil(N / quota));
+
+    // Clear prior jobs for clean range allocation
+    await db.run('DELETE FROM jobs WHERE project_id = ?', [req.params.id]);
+
+    const activeAllocations = [];
+    const queuedAllocations = [];
+    const now = new Date().toISOString();
+
+    for (let i = 1; i <= W; i++) {
+      const padded = String(((i - 1) % 10) + 1).padStart(2, '0');
+      const physicalWorkerId = `W${padded}`;
+      const provider = (i % 2 === 1) ? 'meta' : 'flow';
+      const batchNum = Math.ceil(i / maxConc);
+      const startIdx = (i - 1) * quota + 1;
+      const endIdx = Math.min(N, i * quota);
+      const isBatch1 = (batchNum === 1);
+
+      // Register worker in workers table
+      await orchestrator.registerWorker({ id: physicalWorkerId, provider });
+
+      // Assign prompt range to jobs
+      const slice = prompts.slice(startIdx - 1, endIdx);
+      for (const p of slice) {
+        const jobId = `job_${req.params.id}_${physicalWorkerId}_${p.prompt_index}`;
+        await db.run(`
+          INSERT OR REPLACE INTO jobs (
+            id, project_id, prompt_id, worker_id, status,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [jobId, req.params.id, p.id, physicalWorkerId, isBatch1 ? 'PENDING' : 'QUEUED', now, now]);
+      }
+
+      const itemInfo = {
+        worker_id: physicalWorkerId,
+        provider,
+        batch: batchNum,
+        start_index: startIdx,
+        end_index: endIdx,
+        count: slice.length,
+        status: isBatch1 ? 'DISPATCHED' : 'QUEUED'
+      };
+
+      if (isBatch1) activeAllocations.push(itemInfo);
+      else queuedAllocations.push(itemInfo);
+
+      if (auto_launch && isBatch1) {
+        try {
+          await profileManager.launchWorker(physicalWorkerId, provider);
+        } catch (lErr) {
+          logger.warn('FLEET_DISPATCH', `Worker ${physicalWorkerId} launch note: ${lErr.message}`);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully dispatched fleet: ${activeAllocations.length} active in Batch 1, ${queuedAllocations.length} queued for recycle`,
+      active_batch_1: activeAllocations,
+      queued_batches: queuedAllocations,
+      total_batches: Math.ceil(W / maxConc)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/workers/fleet-status', async (req, res) => {
+  try {
+    const list = [];
+    const workersDir = path.resolve('E:/stickman-video-automation/Workers');
+
+    for (let i = 1; i <= 10; i++) {
+      const id = `W${String(i).padStart(2, '0')}`;
+      const provider = (i % 2 === 1) ? 'meta' : 'flow';
+      const profDir = path.join(workersDir, `Worker-${id}`);
+      const exists = fs.existsSync(profDir);
+      let hasCookies = false;
+
+      if (exists) {
+        const cookieFile = path.join(profDir, 'Default', 'Network', 'Cookies');
+        hasCookies = fs.existsSync(cookieFile);
+      }
+
+      const isRunning = profileManager.activeProcesses.has(id);
+
+      list.push({
+        id,
+        provider,
+        profile_path: profDir,
+        directory_exists: exists,
+        authenticated: hasCookies,
+        is_running: isRunning,
+        status: isRunning ? 'RUNNING' : (hasCookies ? 'SESSION_SAVED' : 'READY_FOR_SETUP')
+      });
+    }
+
+    res.json({ success: true, workers: list });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/workers/login-assistant', async (req, res) => {
+  try {
+    const { worker_id = 'W01', provider } = req.body;
+    const workerId = worker_id.toUpperCase();
+    const prov = provider || ((parseInt(workerId.replace('W', ''), 10) % 2 === 1) ? 'meta' : 'flow');
+
+    logger.info('WORKER_LOGIN', `Opening interactive login window for ${workerId} (${prov})...`);
+    const launchResult = await profileManager.launchWorker(workerId, prov);
+    res.json({
+      success: true,
+      message: `Interactive login browser opened for worker ${workerId} (${prov}). Complete 1-time login in the opened browser window.`,
+      details: launchResult
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/workers', async (req, res) => {
   try {
     const workers = await db.all(`SELECT * FROM workers ORDER BY id ASC`);
