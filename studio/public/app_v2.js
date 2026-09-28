@@ -1,5 +1,35 @@
 
 // =============================================
+// CAPTCHA & LOGIN AUDIO VOICE ALERT SYSTEM
+// =============================================
+let alertedWorkers = new Set();
+
+function triggerWorkerVoiceAlert(workerId, reason = 'Captcha needed') {
+  if (alertedWorkers.has(workerId)) return; // Don't repeat constantly
+  alertedWorkers.add(workerId);
+
+  // Play browser speech synthesis alert: "Worker W01 Captcha needed"
+  try {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const text = `Worker ${workerId} ${reason}`;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.1;
+      utterance.volume = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  } catch (e) {
+    console.warn('SpeechSynthesis error:', e);
+  }
+
+  showToast(`⚠️ ALERT: Worker ${workerId} requires attention: ${reason}!`, 'error');
+  // Reset alert after 45 seconds so it can alert again if still stuck
+  setTimeout(() => { alertedWorkers.delete(workerId); }, 45000);
+}
+
+
+// =============================================
 // FLEET CALCULATOR & BATCH SCHEDULER
 // =============================================
 async function loadFleetCalculation() {
@@ -854,6 +884,9 @@ async function refreshWorkers() {
     }
 
     grid.innerHTML = workers.map(w => {
+    if (w.status === 'LOGIN_REQUIRED' || (w.last_error && w.last_error.toLowerCase().includes('captcha'))) {
+      triggerWorkerVoiceAlert(w.id, 'Captcha needed');
+    }
       const isFlow = w.provider === 'flow';
       const proc = procData.processes?.find(p => p.workerId === w.id);
       const pidText = proc ? `PID: ${proc.pid}` : 'Not Running';
