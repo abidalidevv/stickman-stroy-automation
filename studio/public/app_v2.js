@@ -681,7 +681,7 @@ async function loadProjectGallery() {
     const gallery = document.getElementById('galleryGrid');
     if (!gallery) return;
 
-    const completed = prompts.filter(p => p.status === 'COMPLETED' && p.image_path);
+    const completed = prompts.filter(p => p.status === 'COMPLETED' && (p.file_path || p.image_path || p.file_name));
     document.getElementById('galleryCountBadge').textContent = `${completed.length} / ${prompts.length} Rendered`;
 
     if (completed.length === 0) {
@@ -733,7 +733,8 @@ async function loadTimeline() {
   if (!activeProjectId) return;
   try {
     const res = await fetch(`/api/v1/projects/${activeProjectId}/timeline`);
-    timelineItems = await res.json();
+    const rawTl = await res.json();
+    timelineItems = Array.isArray(rawTl) ? rawTl : (rawTl.items || []);
 
     const audioEl = document.getElementById('timelineAudioElement');
     if (currentProjectData?.voiceover_path) {
