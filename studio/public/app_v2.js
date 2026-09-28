@@ -1,4 +1,17 @@
 
+function resolveMediaUrl(filePath) {
+  if (!filePath) return '';
+  if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('data:')) return filePath;
+  const normalized = filePath.replace(/\\/g, '/');
+  const projIdx = normalized.indexOf('/Projects/');
+  if (projIdx !== -1) {
+    return '/projects-media/' + normalized.substring(projIdx + 10);
+  }
+  const folderName = currentProjectData?.directory_path ? currentProjectData.directory_path.replace(/\\/g, '/').split('/').pop() : currentProjectData?.name;
+  return `/projects-media/${folderName}/${filePath.replace(/^\/+/, '')}`;
+}
+
+
 // Step 1 Sub-Tab Switcher
 function switchStep1SubTab(tab) {
   document.getElementById('subTabMode1').classList.remove('active');
@@ -677,7 +690,7 @@ async function loadProjectGallery() {
     }
 
     gallery.innerHTML = completed.map(p => {
-      const imgUrl = `/projects-media/${currentProjectData.name}/${p.image_path}`;
+      const imgUrl = resolveMediaUrl(p.file_path || p.image_path);
       return `
         <div class="image-card">
           <div class="image-thumbnail-wrap" onclick="openLightbox('${imgUrl}', '${p.prompt_id_str}', '${encodeURIComponent(p.prompt_text)}')">
@@ -725,7 +738,7 @@ async function loadTimeline() {
     const audioEl = document.getElementById('timelineAudioElement');
     if (currentProjectData?.voiceover_path) {
       // Point audio player to local voiceover file if available
-      audioEl.src = `/projects-media/${currentProjectData.name}/voiceover.wav`;
+      audioEl.src = resolveMediaUrl(currentProjectData.voiceover_path || 'voiceover.wav');
       audioEl.load();
     }
 
@@ -794,7 +807,7 @@ function updatePlaybackScene(idx) {
   const captionEl = document.getElementById('playerCaptionOverlay');
 
   if (scene.image_path) {
-    imgEl.src = `/projects-media/${currentProjectData.name}/${scene.image_path}`;
+    imgEl.src = resolveMediaUrl(scene.image_path || scene.file_path);
   } else {
     imgEl.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><rect width="100" height="60" fill="%230a0d16"/><text y="32" x="50" text-anchor="middle" fill="%2300f0ff" font-size="6">Stickman Scene Ready</text></svg>';
   }
@@ -893,7 +906,7 @@ function renderSceneDirectorCards() {
   }
 
   grid.innerHTML = timelineItems.map((scene, idx) => {
-    const thumbUrl = scene.image_path ? `/projects-media/${currentProjectData.name}/${scene.image_path}` : '';
+    const thumbUrl = resolveMediaUrl(scene.image_path || scene.file_path);
     const dur = (scene.duration || (scene.end_time - scene.start_time) || 3.0).toFixed(1);
 
     return `
@@ -1036,7 +1049,7 @@ function pollRender(renderId) {
           // Show Player
           const playerWrap = document.getElementById('renderPlayerWrap');
           const video = document.getElementById('renderedVideoPlayer');
-          video.src = `/projects-media/${currentProjectData.name}/${current.output_path}`;
+          video.src = resolveMediaUrl(current.output_path);
           playerWrap.style.display = 'block';
           loadRenderHistory();
         } else if (current.status === 'FAILED') {
@@ -1074,8 +1087,8 @@ async function loadRenderHistory() {
           <div style="font-size: 11px; color: var(--text-dim);">${new Date(r.created_at).toLocaleString()} • ${r.resolution} • ${r.fps}fps</div>
         </div>
         <div style="display: flex; gap: 8px;">
-          <a href="/projects-media/${currentProjectData.name}/${r.output_path}" target="_blank" class="btn btn-secondary" style="text-decoration: none; padding: 4px 10px; font-size: 11px;">▶ Play</a>
-          <a href="/projects-media/${currentProjectData.name}/${r.output_path}" download class="btn btn-primary" style="text-decoration: none; padding: 4px 10px; font-size: 11px;">⬇ Download</a>
+          <a href="${resolveMediaUrl(r.output_path)}" target="_blank" class="btn btn-secondary" style="text-decoration: none; padding: 4px 10px; font-size: 11px;">▶ Play</a>
+          <a href="${resolveMediaUrl(r.output_path)}" download class="btn btn-primary" style="text-decoration: none; padding: 4px 10px; font-size: 11px;">⬇ Download</a>
         </div>
       </div>
     `).join('');
