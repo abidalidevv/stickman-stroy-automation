@@ -19,6 +19,63 @@ Stickman Studio is a LOCAL-FIRST Windows desktop video production engine.
 It is NOT a prompt generator. It is NOT an image downloader. It is NOT an FFmpeg wrapper.
 It is a COMPLETE ORCHESTRATION SYSTEM: source material → production-ready 1080p MP4.
 
+### Stickman Studio — Complete Workflow
+
+Hamara tool **local-first video production studio** hai jo script/prompt list se le kar final rendered video tak poora workflow automate karta hai. User ko manually prompts split karne, workers ko prompts distribute karne, generated images collect/sort karne, missing images identify karne, images ko voiceover ke sath timeline par lagane, captions/SFX/music add karne aur final video render karne ki zarurat nahi honi chahiye. **Voiceover master timeline hota hai**; uski duration aur selected pacing ke basis par system automatically required images/prompts ki quantity calculate karta hai.
+
+### Mode 1 — Generate Everything
+
+Mode 1 mein user **Project Name, Video Title, Master Prompt, complete Script, Voiceover Audio ya duration, Character Reference Image aur optional Background Music** provide karta hai. Pacing bhi select hoti hai, jaise 1/4, 2/4, 3/4, 4/4, 5/4 ya Custom. Master Prompt normally `master_prompt.md` se aata hai, lekin user custom master prompt bhi de sakta hai. System voiceover duration ko read karke required image count calculate karta hai, phir script ko analyze karta hai aur story beats, characters, locations, objects aur visual continuity ko internally understand karta hai. Script **source of truth** hoti hai, is liye system apni taraf se character, event, location ya story detail invent nahi karta.
+
+Character consistency ke liye **ek hi Character Reference Image kaafi hai**. User ko har worker ke liye alag reference image dene ki zarurat nahi. Project mein jo reference image select hoti hai woh central project reference hoti hai. Jab koi worker generation ke liye start/initialize hota hai, Studio us worker ko wahi reference image aur required Character Bible/character information provide karta hai, aur agar provider reference initialization support karta hai to worker ke generation session mein reference initialize karta hai. Iske baad us worker ke prompts usi established character identity, visual description, style aur continuity rules ke sath generate hote hain. Yani reference image **project-level source** hai, worker-level duplicate input nahi. Cross-provider generation mein 100% pixel-identical character guarantee nahi hoti, lekin reference image + Character Bible + session continuity + prompt consistency + QA mil kar character consistency maintain karte hain.
+
+Mode 1 mein Studio script aur Master Prompt ko use karke **final sequential image prompts** generate karta hai. Har prompt internally prompt ID, script source span/timestamp, scene, character, location aur relevant visual information ke sath track hota hai. AI prompt generation semantic kaam karti hai, jabke image count, numbering, parsing, validation, batching aur worker allocation deterministic system handle karta hai. Final prompts sequentially queue mein chale jate hain aur user ko manually 500 ya 1000 prompts split karne ki zarurat nahi hoti.
+
+### Mode 2 — Existing Prompt List
+
+Mode 2 ka purpose bilkul different hai. Is mode mein **AI prompt generation nahi hoti**. User already-prepared sequential Prompt List deta hai, sath mein **Voiceover Audio/duration, optional/recommended Script, Character Reference Image, Pacing aur optional Background Music**. Yahan Script agar di jaye to mainly source/provenance aur later fidelity/timeline verification ke liye hoti hai; Studio user ke prompts ko rewrite karke naye prompts nahi banata. Prompt List hi generation ka direct source hoti hai.
+
+Mode 2 mein jo cheezen dono modes mein common hain, woh common pipeline mein chali jati hain: **Voiceover → duration/timeline, pacing → image count validation, Character Reference → character/session initialization, optional music → post-production, captions/SFX/effects → final render**. Lekin prompt creation ka difference clear rehta hai: **Mode 1 mein Script + Master Prompt se prompts generate hote hain; Mode 2 mein user ke existing prompts directly use hote hain.** Isliye Mode 2 mein AI prompt-generation stage completely skip hota hai.
+
+### Prompt List ka Worker System
+
+Jab final prompt list ready ho jati hai, Studio har prompt ko unique **Prompt ID** deta hai aur queue mein rakhta hai. User Settings/project ke andar decide kar sakta hai ke kitne **Flow workers aur kitne Meta workers** use karne hain. System required workers ko dynamically provision karta hai, maximum supported active workers ke andar. Ye fixed “50 images per worker” ya mandatory 50/50 Flow/Meta system nahi hai. Agar 300 prompts hain aur 6 workers active hain to orchestration engine workload ko workers mein dynamically distribute karega. Worker ko jo job milti hai uske sath prompt ID, prompt aur required generation/reference context diya jata hai.
+
+### Worker + Character Reference Session
+
+Worker browser profile ke sath isolated environment mein run karta hai. Worker jab first time generation ke liye ready hota hai to Studio uski state check karta hai aur agar character reference required hai to **central project reference ko us worker ke generation session mein initialize karta hai**. Worker ko har prompt ke liye reference image dobara manually dene ki zarurat nahi; reference session-level context ke taur par initialize hoti hai jab provider/workflow isko support karta hai. Uske baad worker assigned prompts generate karta hai. Agar worker crash ho jaye ya replacement/repair worker aaye, to repair worker ko generation continue karne se pehle required reference initialization dobara karni hoti hai.
+
+### Flow aur Meta Workers ka Actual Kaam
+
+Studio khud Flow ya Meta ke UI ko replace nahi karta. Existing **Flow aur Meta automation extensions** actual browser-side generation handle karti hain. Studio orchestration layer hai: woh worker ko job deta hai, extension prompt receive karti hai, provider UI mein generation chalati hai, generation complete hone ka wait karti hai, image download karti hai aur result Studio ko report karti hai. Is tarah existing working automation engines preserve rehte hain aur Studio unke upar production-management layer banata hai.
+
+### Image Collection aur Validation
+
+Generated image ko sirf “download ho gaya” keh kar complete nahi maana jata. Studio image ko Prompt ID ke sath associate karta hai, filename/metadata validate karta hai aur ensure karta hai ke correct prompt ki image mili hai. Completed valid image ko dobara automatically regenerate nahi kiya jata. Agar image missing, invalid, corrupt ya failed ho to woh **repair queue** mein jati hai. Agar worker fail ho jaye to uske unfinished jobs stale hone ke baad doosre available worker ko reclaim kiye ja sakte hain. Character reference required ho to repair worker generation se pehle reference initialization karega.
+
+### Voiceover se Timeline
+
+Jab images available hoti hain, Voiceover **master timeline** rehta hai. Studio voiceover ki exact duration use karke images ko sequential timeline par place karta hai. Pacing ke mutabiq har image ka initial duration calculate hota hai. User baad mein timeline mein image replace, reorder ya duration manually adjust kar sakta hai. Yani automatic timeline banne ke baad bhi editor ke paas manual control rehta hai.
+
+### Post-Production
+
+Timeline ke baad Studio captions, SFX, transitions/effects aur optional background music ko production pipeline mein add karta hai. Captions actual voiceover/transcription se generate hote hain aur selected caption style/template ke mutabiq place hote hain. SFX low-density semantic rules ke according use hote hain taa-ke video unnecessarily noisy na ho. Background music optional hai aur default music level **7%** ho sakta hai, with ducking/loop/crop according to voiceover duration.
+
+### Final Render
+
+Last stage mein Studio FFmpeg ke through complete timeline ko final video mein render karta hai. Default output **1920×1080, 16:9, 30 FPS, H.264 video + AAC audio, MP4** hota hai. Render se pehle system missing images, timeline gaps, audio duration, asset availability aur other production checks perform karta hai. Final output sirf tab render hona chahiye jab required assets aur timeline valid hon.
+
+### Dono Modes ka Simple Difference
+
+**Mode 1:**
+`Title + Master Prompt + Script + Voiceover + Character Reference → AI Story/Visual Analysis → Prompt Generation → QA → Prompt Queue → Workers → Images → Timeline → Post Production → Final Video`
+
+**Mode 2:**
+`Existing Prompt List + Voiceover + optional Script + Character Reference → Prompt Validation → Prompt Queue → Workers → Images → Timeline → Post Production → Final Video`
+
+Is architecture mein **Mode 1 ka final Prompt List naturally Mode 2 ka input ban sakta hai**. Yani agar Mode 1 ne prompts generate kar diye, user un prompts ko save karke future mein same project ko Mode 2 se rerun/repair bhi kar sakta hai bina dobara AI se prompts generate karwaye.
+
+
 ### THE PIPELINE (END TO END)
 
 ```
