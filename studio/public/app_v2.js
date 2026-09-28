@@ -1,3 +1,32 @@
+
+// Step 1 Sub-Tab Switcher
+function switchStep1SubTab(tab) {
+  document.getElementById('subTabMode1').classList.remove('active');
+  document.getElementById('subTabMode2').classList.remove('active');
+  document.getElementById('subTabPromptsQueue').classList.remove('active');
+
+  document.getElementById('subViewMode1').style.display = 'none';
+  document.getElementById('subViewMode2').style.display = 'none';
+  document.getElementById('subViewQueue').style.display = 'none';
+
+  if (tab === 'mode1') {
+    document.getElementById('subTabMode1').classList.add('active');
+    document.getElementById('subViewMode1').style.display = 'block';
+  } else if (tab === 'mode2') {
+    document.getElementById('subTabMode2').classList.add('active');
+    document.getElementById('subViewMode2').style.display = 'block';
+  } else if (tab === 'queue') {
+    document.getElementById('subTabPromptsQueue').classList.add('active');
+    document.getElementById('subViewQueue').style.display = 'block';
+    loadProjectPrompts();
+  }
+}
+
+function approveAndStartWorkers() {
+  goToStep(2);
+  showToast('Prompts approved! Ready to launch browser workers.', 'success');
+}
+
 /**
  * 🎬 STICKMAN STUDIO V2 — FRONTEND CONTROLLER
  * Ultra-fast, reactive, modern glassmorphic dashboard controller
@@ -392,6 +421,9 @@ async function loadProjectPrompts() {
     if (!container) return;
 
     document.getElementById('promptsCountBadge').textContent = `${prompts.length} Prompts`;
+    if (document.getElementById('promptsSubTabCount')) {
+      document.getElementById('promptsSubTabCount').textContent = prompts.length;
+    }
 
     if (prompts.length === 0) {
       container.innerHTML = '<div style="color: var(--text-dim); padding: 18px; text-align: center;">No prompts in this project yet. Use AI Story Generator or Import Prompts above.</div>';
@@ -1063,6 +1095,22 @@ function startHardwarePolling() {
       document.getElementById('headerCpuVal').textContent = `${data.cpu_percent}%`;
       document.getElementById('headerRamVal').textContent = `${data.ram_percent}%`;
       document.getElementById('headerWorkersVal').textContent = `${data.active_workers} Active (${data.flow_workers_active}F / ${data.meta_workers_active}M)`;
+
+      if (document.getElementById('teleTotalRam')) document.getElementById('teleTotalRam').textContent = `${data.ram_total_gb} GB`;
+      if (document.getElementById('teleUsedRam')) document.getElementById('teleUsedRam').textContent = `${data.ram_used_gb} GB (${data.ram_percent}%)`;
+      if (document.getElementById('teleFreeRam')) {
+        const free = (parseFloat(data.ram_total_gb) - parseFloat(data.ram_used_gb)).toFixed(1);
+        document.getElementById('teleFreeRam').textContent = `${free} GB`;
+      }
+      const warnEl = document.getElementById('farmRamWarning');
+      if (warnEl) {
+        if (data.hardware_warning) {
+          warnEl.style.display = 'block';
+          warnEl.textContent = '⚠️ ' + data.hardware_warning.message;
+        } else {
+          warnEl.style.display = 'none';
+        }
+      }
     } catch (e) {}
   }
   poll();
