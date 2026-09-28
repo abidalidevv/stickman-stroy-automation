@@ -8,7 +8,7 @@
     <!-- Google Fonts: Montserrat, Bebas Neue, Anton, Poppins, Outfit, Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;600;700;800;900&family=Montserrat:ital,wght@0,700;0,800;0,900;1,900&family=Outfit:wght@600;700;800;900&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bangers&family=Bebas+Neue&family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800;900&family=Luckiest+Guy&family=Montserrat:ital,wght@0,700;0,800;0,900;1,900&family=Oswald:wght@700&family=Outfit:wght@600;700;800;900&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles_v2.css">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='28'>🎬</text></svg>">
 </head>
@@ -595,19 +595,28 @@
       <section id="step-4-panel" class="view-panel">
         <div class="player-layout-split">
           
-          <!-- LEFT COLUMN: VIDEO PLAYER CANVAS, SCRUBBER, CONTROLS & TIMELINE SCENE STRIP -->
+          <!-- LEFT COLUMN: VIDEO PLAYER CANVAS, SCRUBBER, CONTROLS & CAPCUT MULTI-TRACK TIMELINE -->
           <div class="player-column-left">
             <div class="preview-player-wrapper">
-              <div class="player-canvas-viewport" id="playerCanvasViewport">
+              <div class="player-canvas-viewport" id="playerCanvasViewport" style="position: relative; overflow: hidden;">
                 <!-- Active Image Layer with Ken Burns Motion -->
                 <img id="playerCanvasImage" class="canvas-image-stage motion-zoom-in" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60'><rect width='100' height='60' fill='%230a0d16'/><text y='32' x='50' text-anchor='middle' fill='%2300f0ff' font-size='6'>Stickman Studio Player Ready</text></svg>" alt="Stickman Scene Preview" />
                 
                 <!-- Scene Badge -->
                 <div id="playerSceneBadge" class="canvas-scene-badge">SCENE 001</div>
 
-                <!-- Kinetic Draggable Subtitle / Caption Overlay -->
-                <div id="captionOverlay" class="caption-overlay draggable">
-                  <div id="captionText" class="caption-text">Stickman scene preview ready. Hit Play below to watch.</div>
+                <!-- Stage Caption Box & Kinetic Subtitle Content (TwitchYouTube Architecture) -->
+                <div id="stage-caption-box" class="stage-caption-box pos-bottom">
+                  <div id="stage-caption-content" class="stage-caption-content aa-capcut">
+                    <span class="demo-word active">WAIT...</span>
+                    <span class="demo-word">DID</span>
+                    <span class="demo-word">HE</span>
+                    <span class="demo-word">REALLY</span>
+                    <span class="demo-word">DISCOVER</span>
+                    <span class="demo-word">THE</span>
+                    <span class="demo-word">NEON</span>
+                    <span class="demo-word">PORTAL?!</span>
+                  </div>
                 </div>
               </div>
 
@@ -650,183 +659,294 @@
               <audio id="timelineAudioElement" style="display: none;"></audio>
             </div>
 
-            <!-- Timeline Scenes Horizontal Carousel Strip -->
-            <div class="card" style="margin-top: 16px;">
-              <div class="card-header" style="padding-bottom: 8px;">
-                <div class="card-title-group">
-                  <div class="card-icon">🎬</div>
+            <!-- ==================== CAPCUT MULTI-TRACK HORIZONTAL TIMELINE ==================== -->
+            <div class="capcut-timeline-container">
+              <div class="capcut-timeline-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 16px;">🎬</span>
                   <div>
-                    <div class="card-title">Scene Director & Narrative Sequence</div>
-                    <div class="card-subtitle">Click any scene card to preview frame & cue audio position</div>
+                    <div style="font-family: var(--font-display); font-size: 15px; font-weight: 800; color: #fff;">
+                      CapCut Multi-Track Timeline & Sequence Editor
+                    </div>
+                    <div style="font-size: 11.5px; color: var(--text-muted);">
+                      Drag-and-drop to reorder scenes, adjust individual image durations, and verify missing assets
+                    </div>
                   </div>
                 </div>
-                <button class="btn btn-secondary" onclick="buildTimeline()" style="font-size: 11.5px; padding: 5px 12px;">Re-Sync Scenes</button>
+
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <button type="button" class="btn btn-secondary" onclick="checkForMissingImages()" style="font-size: 11.5px; padding: 6px 12px; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24;">
+                    🔍 Check for Missing Images
+                  </button>
+                  <button type="button" class="btn btn-secondary" onclick="equalizeTimelineDurations()" style="font-size: 11.5px; padding: 6px 12px;">
+                    ⚡ Auto-Equalize (3/4s Pacing)
+                  </button>
+                  <button type="button" class="btn btn-primary" onclick="saveTimelineChanges()" style="font-size: 11.5px; padding: 6px 14px;">
+                    💾 Save Timeline
+                  </button>
+                </div>
               </div>
-              <div id="sceneDirectorCardsContainer" class="scene-cards-strip">
-                <!-- Dynamic scene thumbnails injected by JS -->
+
+              <!-- Missing Images Alert Banner (Hidden by default) -->
+              <div id="timelineMissingBanner" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #fbbf24; display: flex; justify-content: space-between; align-items: center;">
+                <span id="timelineMissingText">⚠️ 2 missing images detected</span>
+                <button type="button" class="btn btn-secondary" onclick="requeueMissingPrompts()" style="font-size: 11px; padding: 4px 10px;">⚡ Re-queue Missing</button>
+              </div>
+
+              <!-- Track 1: Master Audio / Voiceover Lane -->
+              <div class="capcut-track-row">
+                <div class="track-label-col">
+                  <span>🎙️ Voiceover</span>
+                </div>
+                <div class="track-content-lane">
+                  <div class="audio-track-block">
+                    <span>🔊 <strong id="timelineVoiceFileName">voiceover.mp3</strong></span>
+                    <span style="opacity: 0.5;">|</span>
+                    <span>Duration: <strong id="timelineVoiceDuration">00:00.0</strong></span>
+                    <span style="opacity: 0.5;">|</span>
+                    <span style="color: var(--cyan);">Master Track (100% Volume)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Track 2: Visual Images & Scenes Lane (CapCut Draggable Blocks) -->
+              <div class="capcut-track-row">
+                <div class="track-label-col">
+                  <span>🖼️ Scenes</span>
+                </div>
+                <div id="capcutVideoTrackLane" class="track-content-lane" ondragover="onTimelineDragOver(event)">
+                  <!-- Dynamic draggable scene cards injected via JS -->
+                </div>
+              </div>
+
+              <!-- Bottom Timeline Info Badge -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11.5px; color: var(--text-muted);">
+                <div>Total Scenes: <strong id="capcutSceneCount" style="color: #fff;">0</strong> | Pacing: <strong id="capcutPacingBadge" style="color: var(--cyan);">3/4s (~1.33s per image)</strong></div>
+                <div>💡 Drag scene cards horizontally to rearrange sequence. Use <strong>[-]</strong> and <strong>[+]</strong> to stretch image time.</div>
               </div>
             </div>
           </div>
 
-          <!-- RIGHT COLUMN: CAPCUT CAPTION CUSTOMIZER & PRESETS (FROM E:	witchytg) -->
+          <!-- RIGHT COLUMN: CAPCUT CAPTION CUSTOMIZER & 18 TEMPLATES (PORTED FROM E:	witchyt	witchyoutube) -->
           <div class="caption-inspector">
             <div class="inspector-header">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3>🎨 CapCut Caption Customizer</h3>
+                <h3>🎨 Dynamic Captions & Subtitles</h3>
                 <span class="brand-badge" style="background: rgba(0, 240, 255, 0.15); color: var(--cyan);">Live Preview</span>
               </div>
-              <p>Kinetic animated subtitles with downloaded fonts, shadow depth & bounce effects.</p>
+              <p>18 viral CapCut styles with draggable box and live font preview.</p>
             </div>
 
             <!-- Master Caption Toggle -->
             <div class="inspector-section" style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-subtle); padding: 12px; margin-bottom: 2px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                  <label style="font-weight: 700; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 8px; cursor: pointer;" for="captionsMasterToggle">
-                    ⚡ Animated Captions / Subtitles
+                  <label style="font-weight: 700; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 8px; cursor: pointer;" for="enable-captions">
+                    ⚡ Enable Subtitles / Captions
                   </label>
-                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Toggle on/off captions over video</div>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Toggle on/off captions over video preview</div>
                 </div>
                 <label class="switch-toggle">
-                  <input type="checkbox" id="captionsMasterToggle" checked onchange="toggleCaptionsMaster(this.checked)">
+                  <input type="checkbox" id="enable-captions" checked onchange="toggleCaptionVisibility(this.checked)">
                   <span class="toggle-slider"></span>
                 </label>
               </div>
             </div>
 
-            <div id="caption-customizer-controls">
-              <!-- 1. Quick Master Presets (6 Templates) -->
-              <div class="inspector-section">
+            <div id="captions-layer-controls">
+              <!-- Option 1: Caption Placement Presets -->
+              <div class="inspector-section" style="margin-top: 8px;">
                 <label class="section-title">
-                  <span>✨ Master Caption Templates</span>
-                  <span style="font-size: 10px; font-weight: 600; text-transform: none; color: #94a3b8;">1-Click Style</span>
+                  <span>📍 1. Caption Placement</span>
                 </label>
-                <div class="preset-grid">
-                  <button type="button" class="preset-btn active" onclick="applyCaptionPreset('capcut_yellow', this)" title="CapCut Yellow - Shorts & TikTok">
-                    <span class="preset-preview-sample" style="color: #ffe010; -webkit-text-stroke: 1.5px #000; font-family: 'Montserrat', sans-serif;">YELLOW</span>
-                    <span class="preset-title">CapCut Yellow</span>
-                  </button>
-                  <button type="button" class="preset-btn" onclick="applyCaptionPreset('cyber_cyan', this)" title="Cyber Cyan - Tech & AI">
-                    <span class="preset-preview-sample" style="color: #00f0ff; -webkit-text-stroke: 1.5px #05070e; font-family: 'Montserrat', sans-serif;">CYAN</span>
-                    <span class="preset-title">Cyber Cyan</span>
-                  </button>
-                  <button type="button" class="preset-btn" onclick="applyCaptionPreset('viral_box', this)" title="Viral Box - High Contrast">
-                    <span class="preset-preview-sample" style="background: #ffe010; color: #000; padding: 1px 4px; border-radius: 3px; font-size: 10px; font-family: 'Montserrat', sans-serif;">BOX</span>
-                    <span class="preset-title">Viral Box</span>
-                  </button>
-                  <button type="button" class="preset-btn" onclick="applyCaptionPreset('neon_purple', this)" title="Neon Purple - Epic Story">
-                    <span class="preset-preview-sample" style="color: #c084fc; -webkit-text-stroke: 1.5px #000; font-family: 'Bebas Neue', sans-serif;">PURPLE</span>
-                    <span class="preset-title">Neon Purple</span>
-                  </button>
-                  <button type="button" class="preset-btn" onclick="applyCaptionPreset('clean_cinema', this)" title="Clean Cinema - Documentary">
-                    <span class="preset-preview-sample" style="color: #ffffff; font-family: 'Montserrat', sans-serif;">CINEMA</span>
-                    <span class="preset-title">Clean Cinema</span>
-                  </button>
-                  <button type="button" class="preset-btn" onclick="applyCaptionPreset('red_impact', this)" title="Red Impact - High Action">
-                    <span class="preset-preview-sample" style="color: #ef4444; -webkit-text-stroke: 1.5px #000; font-family: 'Anton', sans-serif;">IMPACT</span>
-                    <span class="preset-title">Red Impact</span>
-                  </button>
+                <div class="btn-group">
+                  <button type="button" class="btn-option" id="cap-pos-left" onclick="setCaptionPosition('left')">◀ Left</button>
+                  <button type="button" class="btn-option" id="cap-pos-right" onclick="setCaptionPosition('right')">Right ▶</button>
+                  <button type="button" class="btn-option active" id="cap-pos-bottom" onclick="setCaptionPosition('bottom')">▼ Bottom</button>
+                  <button type="button" class="btn-option" id="cap-pos-center" onclick="setCaptionPosition('center')">⦿ Center</button>
                 </div>
               </div>
 
-              <!-- 2. Typography & Font Family -->
-              <div class="inspector-section" style="margin-top: 10px;">
-                <label class="section-title">
-                  <span>🔤 Font Family & Size</span>
-                </label>
-                <div class="form-group" style="margin-bottom: 10px;">
-                  <select id="captionFontSelect" class="form-select" onchange="updateCaptionStyle({ fontFamily: this.value })">
-                    <option value="Montserrat" selected>Montserrat (CapCut Bold Standard)</option>
-                    <option value="Bebas Neue">Bebas Neue (Viral Tall Impact)</option>
-                    <option value="Anton">Anton (Bold Heavy Headline)</option>
-                    <option value="Outfit">Outfit (Clean Cyber Modern)</option>
-                    <option value="Poppins">Poppins (Geometric Sans)</option>
-                    <option value="Inter">Inter (Minimalist Clean)</option>
-                  </select>
+              <!-- Option 2: Font Size Presets -->
+              <div class="inspector-section" style="margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <label class="section-title" style="margin-bottom: 0;">
+                    <span>🔤 2. Font Size</span>
+                  </label>
+                  <span class="brand-badge" id="caption-font-size-badge">Medium (95px)</span>
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                  <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 4px;">
-                    <span style="color: var(--text-muted);">Font Size:</span>
-                    <strong id="captionFontSizeLabel" style="color: var(--cyan);">26px</strong>
-                  </div>
-                  <input type="range" id="captionFontSizeSlider" min="16" max="48" value="26" class="form-input" style="padding: 4px 0;" oninput="document.getElementById('captionFontSizeLabel').textContent = this.value + 'px'; updateCaptionStyle({ fontSize: parseInt(this.value, 10) })" />
-                </div>
-              </div>
-
-              <!-- 3. Colors & Highlight -->
-              <div class="inspector-section" style="margin-top: 10px;">
-                <label class="section-title">
-                  <span>🎨 Text & Active Word Colors</span>
-                </label>
-                <div class="grid-2" style="gap: 10px;">
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 11px;">Spoken Word Highlight</label>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                      <input type="color" id="captionHighlightColor" value="#ffe010" style="border: none; width: 36px; height: 32px; border-radius: 4px; cursor: pointer; background: none;" onchange="updateCaptionStyle({ highlightColor: this.value })" />
-                      <span id="captionHighlightHex" style="font-family: var(--font-mono); font-size: 11px; color: var(--cyan);">#FFE010</span>
-                    </div>
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 11px;">Primary Base Color</label>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                      <input type="color" id="captionPrimaryColor" value="#ffffff" style="border: none; width: 36px; height: 32px; border-radius: 4px; cursor: pointer; background: none;" onchange="updateCaptionStyle({ primaryColor: this.value })" />
-                      <span style="font-family: var(--font-mono); font-size: 11px; color: #ffffff;">#FFFFFF</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 4. Text Stroke / Outline -->
-              <div class="inspector-section" style="margin-top: 10px;">
-                <label class="section-title">
-                  <span>🖋 Text Stroke / Outline</span>
-                </label>
-                <div class="grid-2" style="gap: 10px; align-items: center;">
-                  <div>
-                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
-                      <span style="color: var(--text-muted);">Stroke Width:</span>
-                      <strong id="captionStrokeLabel" style="color: var(--cyan);">4px</strong>
-                    </div>
-                    <input type="range" id="captionStrokeSlider" min="0" max="8" value="4" class="form-input" style="padding: 4px 0;" oninput="document.getElementById('captionStrokeLabel').textContent = this.value + 'px'; updateCaptionStyle({ strokeWidth: parseInt(this.value, 10) })" />
-                  </div>
-                  <div>
-                    <label class="form-label" style="font-size: 11px; margin-bottom: 2px;">Stroke Color</label>
-                    <input type="color" id="captionStrokeColor" value="#000000" style="border: none; width: 36px; height: 28px; border-radius: 4px; cursor: pointer; background: none;" onchange="updateCaptionStyle({ strokeColor: this.value })" />
-                  </div>
-                </div>
-              </div>
-
-              <!-- 5. Kinetic Animation & Position -->
-              <div class="inspector-section" style="margin-top: 10px;">
-                <label class="section-title">
-                  <span>✨ Kinetic Animation & Placement</span>
-                </label>
-                <div class="form-group" style="margin-bottom: 10px;">
-                  <label class="form-label" style="font-size: 11px;">Word Animation FX</label>
-                  <select id="captionAnimSelect" class="form-select" onchange="updateCaptionStyle({ animation: this.value })">
-                    <option value="word_bounce" selected>CapCut Pop & Bounce (Dynamic)</option>
-                    <option value="word_glow">Neon Glowing Pulse</option>
-                    <option value="word_box">Highlight Pill Box</option>
-                    <option value="fade_in">Smooth Fade Up</option>
-                    <option value="none">Static Highlight</option>
+                <div class="btn-group">
+                  <button type="button" class="btn-option active" id="cap-size-medium" onclick="setCaptionSize('medium')">Medium</button>
+                  <button type="button" class="btn-option" id="cap-size-large" onclick="setCaptionSize('large')">Large</button>
+                  <button type="button" class="btn-option" id="cap-size-huge" onclick="setCaptionSize('huge')">Huge</button>
+                  <select id="caption-font-size-more" class="btn-option btn-dropdown-select" onchange="onCaptionMoreSelect(this.value)">
+                    <option value="" disabled selected hidden>Extra...</option>
+                    <option value="extrahuge">🚀 Extra Huge (160px)</option>
+                    <option value="custom">⚙️ Custom Size...</option>
+                    <option value="small">Small (80px)</option>
                   </select>
                 </div>
 
-                <div class="form-group" style="margin-bottom: 6px;">
-                  <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
-                    <span style="color: var(--text-muted);">Vertical Bottom Offset:</span>
-                    <strong id="captionMarginLabel" style="color: var(--cyan);">32px</strong>
-                  </div>
-                  <input type="range" id="captionMarginSlider" min="10" max="120" value="32" class="form-input" style="padding: 4px 0;" oninput="document.getElementById('captionMarginLabel').textContent = this.value + 'px'; updateCaptionStyle({ marginV: parseInt(this.value, 10) })" />
-                </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                  <button type="button" class="btn btn-secondary" onclick="recenterCaptions()" style="font-size: 11px; padding: 4px 10px;">
-                    ↺ Re-center Position
-                  </button>
-                  <span style="font-size: 11px; color: var(--text-muted);">💡 Drag subtitle on player to move</span>
+                <!-- Custom Slider (if custom picked) -->
+                <div id="custom-font-size-row" style="display: none; margin-top: 8px;">
+                  <input type="range" id="custom-font-size-slider" min="40" max="220" value="115" class="form-input" style="padding: 4px 0;" oninput="onCustomFontSizeInput(this.value)" />
                 </div>
               </div>
+
+              <!-- Option 3: Caption Font Family Override -->
+              <div class="inspector-section" style="margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <label class="section-title" style="margin-bottom: 0;">
+                    <span>🖋 3. Font Family Override</span>
+                  </label>
+                  <span class="brand-badge" id="caption-font-family-badge">Default (Template)</span>
+                </div>
+                <select id="caption-font-family" class="form-select" onchange="onCaptionFontFamilyChange(this.value)">
+                  <option value="default" selected>Default (Use Template Font)</option>
+                  <option value="Montserrat">Montserrat (CapCut Modern Bold)</option>
+                  <option value="Poppins">Poppins (Clean Geometric)</option>
+                  <option value="Impact">Impact (Punchy Loud)</option>
+                  <option value="Arial Black">Arial Black (Heavy Legible)</option>
+                  <option value="Bangers">Bangers (Comic Cartoon)</option>
+                  <option value="Luckiest Guy">Luckiest Guy (Punchy Chunky)</option>
+                  <option value="Archivo Black">Archivo Black (Ultra Heavy)</option>
+                  <option value="Cinzel">Cinzel (Cinematic / Luxury)</option>
+                  <option value="Oswald">Oswald (Tall Condensed)</option>
+                  <option value="Outfit">Outfit (Sleek Tech)</option>
+                  <option value="Inter">Inter (Clean Minimal)</option>
+                  <option value="Courier New">Courier New (Typewriter / Crime)</option>
+                </select>
+              </div>
+
+              <!-- 18 SELECTABLE PRESET TEMPLATES GRID -->
+              <div class="inspector-section" style="margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <label class="section-title" style="margin-bottom: 0;">
+                    <span>✨ 18 Viral Caption Preset Templates</span>
+                  </label>
+                  <span style="font-size: 10px; color: var(--text-muted);">Click to apply immediately</span>
+                </div>
+
+                <div class="preset-grid-18" id="preset-grid">
+                  <!-- 1. CapCut Viral Yellow -->
+                  <div class="preset-card-visual active" data-preset="capcut_yellow" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-capcut">Aa!</span></div>
+                    <div class="preset-name">CapCut Yellow</div>
+                  </div>
+                  <!-- 2. Hormozi Green -->
+                  <div class="preset-card-visual" data-preset="hormozi_green" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-hormozi">Aa!</span></div>
+                    <div class="preset-name">Hormozi Green</div>
+                  </div>
+                  <!-- 3. MrBeast Gold -->
+                  <div class="preset-card-visual" data-preset="mrbeast_punch" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-mrbeast">AA!</span></div>
+                    <div class="preset-name">MrBeast Gold</div>
+                  </div>
+                  <!-- 4. Ali Abdaal -->
+                  <div class="preset-card-visual" data-preset="ali_abdaal" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-ali">Aa!</span></div>
+                    <div class="preset-name">Ali Abdaal</div>
+                  </div>
+                  <!-- 5. Luxury Gold -->
+                  <div class="preset-card-visual" data-preset="iman_gadzhi" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-luxury">AA!</span></div>
+                    <div class="preset-name">Luxury Gold</div>
+                  </div>
+                  <!-- 6. TikTok Violet -->
+                  <div class="preset-card-visual" data-preset="tiktok_violet" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-tiktok">Aa</span></div>
+                    <div class="preset-name">TikTok Violet</div>
+                  </div>
+                  <!-- 7. Podcast Box -->
+                  <div class="preset-card-visual" data-preset="podcast_pill" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-podcast-pill">Aa!</span></div>
+                    <div class="preset-name">Podcast Box</div>
+                  </div>
+                  <!-- 8. Streamer Lime -->
+                  <div class="preset-card-visual" data-preset="streamer_lime" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-streamer">AA!</span></div>
+                    <div class="preset-name">Streamer Lime</div>
+                  </div>
+                  <!-- 9. Neon Cyber -->
+                  <div class="preset-card-visual" data-preset="neon_cyber" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-neon">Aa</span></div>
+                    <div class="preset-name">Neon Cyber</div>
+                  </div>
+                  <!-- 10. Red Fire -->
+                  <div class="preset-card-visual" data-preset="red_fire" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-fire">Aa!</span></div>
+                    <div class="preset-name">Red Fire</div>
+                  </div>
+                  <!-- 11. Stoic Slate -->
+                  <div class="preset-card-visual" data-preset="dark_stoic" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-stoic">Aa!</span></div>
+                    <div class="preset-name">Stoic Slate</div>
+                  </div>
+                  <!-- 12. Clean Minimal -->
+                  <div class="preset-card-visual" data-preset="clean_minimal" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-minimal">Aa</span></div>
+                    <div class="preset-name">Clean Minimal</div>
+                  </div>
+                  <!-- 13. Retro 70s -->
+                  <div class="preset-card-visual" data-preset="retro_vintage" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-retro">Aa!</span></div>
+                    <div class="preset-name">Retro 70s</div>
+                  </div>
+                  <!-- 14. Midnight Blue -->
+                  <div class="preset-card-visual" data-preset="midnight_blue" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-midnight">Aa!</span></div>
+                    <div class="preset-name">Midnight Blue</div>
+                  </div>
+                  <!-- 15. True Crime -->
+                  <div class="preset-card-visual" data-preset="true_crime" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-crime">Aa!</span></div>
+                    <div class="preset-name">True Crime</div>
+                  </div>
+                  <!-- 16. Wealth Mint -->
+                  <div class="preset-card-visual" data-preset="wealth_cash" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-wealth">Aa!</span></div>
+                    <div class="preset-name">Wealth Mint</div>
+                  </div>
+                  <!-- 17. Cosmic Violet -->
+                  <div class="preset-card-visual" data-preset="cosmic_violet" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-cosmic">Aa!</span></div>
+                    <div class="preset-name">Cosmic Violet</div>
+                  </div>
+                  <!-- 18. Cinematic Bronze -->
+                  <div class="preset-card-visual" data-preset="cinematic_bronze" onclick="selectCaptionPreset(this)">
+                    <div class="preset-aa-preview"><span class="aa-bronze">AA!</span></div>
+                    <div class="preset-name">Cinema Bronze</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Extra Setting: Caption Background Box (Highlight Backdrop) -->
+              <div class="caption-bg-box-card">
+                <div class="caption-bg-box-header">
+                  <div class="caption-bg-box-title">
+                    <span>📦 Caption Background Box</span>
+                    <span class="brand-badge" style="font-size: 10px;">Backdrop</span>
+                  </div>
+                  <label class="switch-toggle">
+                    <input type="checkbox" id="enable-caption-bg" onchange="toggleCaptionBg(this.checked)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div id="caption-bg-options" style="display: none; margin-top: 10px;">
+                  <div class="grid-2">
+                    <div>
+                      <label class="form-label" style="font-size: 11px;">Box Color</label>
+                      <input type="color" id="caption-bg-color" value="#000000" class="form-input" style="padding: 2px 4px; height: 32px;" onchange="updateCaptionBgPreview()">
+                    </div>
+                    <div>
+                      <label class="form-label" style="font-size: 11px;">Opacity: <span id="caption-bg-opacity-label">75%</span></label>
+                      <input type="range" id="caption-bg-opacity" min="10" max="100" value="75" class="form-input" style="padding: 4px 0;" oninput="document.getElementById('caption-bg-opacity-label').textContent = this.value + '%'; updateCaptionBgPreview()">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
 

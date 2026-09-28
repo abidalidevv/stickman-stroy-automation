@@ -150,6 +150,108 @@ async function loadGroqKeyPool() {
   try {
     const res = await fetch('/api/v1/ai/key-pool');
     const data = await res.json();
+    const badge = document.getElementById('activeKeysBadge') || document.getElementById('groqKeyCountBadge');
+    if (badge) badge.textContent = `${data.key_count || 0} Keys in Pool`;
+    const label = document.getElementById('keyPoolCountLabel');
+    if (label) label.textContent = `${data.key_count || 0} Key(s) Loaded`;
+
+    const area = document.getElementById('settingsGroqKeyPool') || document.getElementById('groqKeysPoolInput');
+    if (area && data.keys && Array.isArray(data.keys) && data.keys.length > 0) {
+      area.value = data.keys.join('\n');
+    }
+  } catch (err) {
+    console.error('Error loading Groq key pool:', err);
+  }
+}
+
+async function saveGroqKeyPool() {
+  const input = document.getElementById('settingsGroqKeyPool') || document.getElementById('groqKeysPoolInput');
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) {
+    showToast('Enter at least one Groq API key', 'warn');
+    return;
+  }
+  const keys = raw.split(/[\r\n,]+/).map(k => k.trim()).filter(k => k.startsWith('gsk_'));
+  if (keys.length === 0) {
+    showToast('Invalid format. Keys must start with gsk_', 'error');
+    return;
+  }
+
+  try {
+    showToast('Saving Groq API keys...', 'info');
+    const res = await fetch('/api/v1/ai/key-pool', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keys })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      loadGroqKeyPool();
+    } else {
+      showToast(data.error || 'Failed saving keys', 'error');
+    }
+  } catch (err) {
+    showToast(`Error saving keys: ${err.message}`, 'error');
+  }
+}
+
+async function refreshFleetStatus() {
+  try {
+    const res = await fetch('/api/v1/workers/fleet-status');
+    const data = await res.json();
+    const grid = document.getElementById('workersFleetStatusGrid');
+    if (!grid || !data.workers) return;
+
+    grid.innerHTML = data.workers.map(w => {
+      const isAuth = w.authenticated;
+      const statusBadge = isAuth 
+        ? '<span class="badge badge-emerald" style="font-size: 10px;">✓ Session Saved</span>'
+        : '<span class="badge badge-amber" style="font-size: 10px;">⏳ Setup Required</span>';
+
+      return `
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-family: var(--font-mono); font-weight: 700; color: #fff;">${w.id}</span>
+            <span class="badge badge-cyan" style="font-size: 10px;">${w.provider.toUpperCase()}</span>
+          </div>
+          <div style="margin-bottom: 8px;">${statusBadge}</div>
+          <button class="btn btn-secondary" onclick="openWorkerLogin('${w.id}', '${w.provider}')" style="width: 100%; padding: 4px 8px; font-size: 11px;">
+            🔑 Open Login
+          </button>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.warn('refreshFleetStatus error:', err);
+  }
+}
+
+async function openWorkerLogin(workerId, provider) {
+  showToast(`Opening 1-time login browser for ${workerId} (${provider})...`, 'info');
+  try {
+    const res = await fetch('/api/v1/workers/login-assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ worker_id: workerId, provider })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      setTimeout(refreshFleetStatus, 4000);
+    } else {
+      showToast(data.error || 'Failed to open login window', 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function loadGroqKeyPool() {
+  try {
+    const res = await fetch('/api/v1/ai/key-pool');
+    const data = await res.json();
     const badge = document.getElementById('groqKeyCountBadge');
     if (badge) badge.textContent = `${data.key_count} Keys in Pool`;
     const status = document.getElementById('groqPoolStatusText');
@@ -337,66 +439,412 @@ function updateBgmVolume(val) {
 // =============================================
 let captionEngine = null;
 
-function initCaptionEngine() {
-  if (typeof StudioCaptionEngine !== 'undefined') {
-    captionEngine = new StudioCaptionEngine('captionOverlay', 'captionText');
-    window.captionEngine = captionEngine;
-    captionEngine.enableDrag((newBottom) => {
-      const slider = document.getElementById('captionMarginSlider');
-      if (slider) slider.value = newBottom;
-      const lbl = document.getElementById('captionMarginLabel');
-      if (lbl) lbl.textContent = newBottom + 'px';
+// =============================================
+// TWITCHYOUTUBE 18 CAPTION PRESETS & LIVE PREVIEW ENGINE
+// =============================================
+const CAPTION_STATE = {
+  enabled: true,
+  preset: 'capcut_yellow',
+  position: 'bottom',
+  size: 'medium',
+  customSize: 115,
+  fontFamily: 'default',
+  bgBoxEnabled: false,
+  bgColor: '#000000',
+  bgOpacity: 0.75
+};
+
+const CAPTION_PRESET_CONFIGS = {
+  'capcut_yellow': { className: 'aa-capcut', font: 'Montserrat', color: '#ffff00', shadow: '0 0 8px #ffcc00, 2px 2px 0 #000' },
+  'hormozi_green': { className: 'aa-hormozi', font: 'Impact', color: '#00ff66', shadow: '0 0 8px #00dd44, 2px 2px 0 #000' },
+  'mrbeast_punch': { className: 'aa-mrbeast', font: 'Bangers', color: '#fbbf24', shadow: '2px 2px 0 #000' },
+  'ali_abdaal': { className: 'aa-ali', font: 'Poppins', color: '#38bdf8', shadow: '1px 1px 0 #000' },
+  'iman_gadzhi': { className: 'aa-luxury', font: 'Cinzel', color: '#ffd700', shadow: '0 0 10px rgba(255,215,0,0.4)' },
+  'tiktok_violet': { className: 'aa-tiktok', font: 'Archivo Black', color: '#d946ef', shadow: '0 0 8px #a855f7' },
+  'podcast_pill': { className: 'aa-podcast-pill', font: 'Montserrat', color: '#000000', shadow: 'none', bg: '#00e5ff' },
+  'streamer_lime': { className: 'aa-streamer', font: 'Luckiest Guy', color: '#a3e635', shadow: '2px 2px 0 #000' },
+  'neon_cyber': { className: 'aa-neon', font: 'Montserrat', color: '#00ffff', shadow: '0 0 8px #ff00ff' },
+  'red_fire': { className: 'aa-fire', font: 'Impact', color: '#ff3344', shadow: '0 0 8px #ef4444' },
+  'dark_stoic': { className: 'aa-stoic', font: 'Oswald', color: '#cbd5e1', shadow: '1px 1px 0 #000' },
+  'clean_minimal': { className: 'aa-minimal', font: 'Inter', color: '#ffffff', shadow: '0 2px 6px rgba(0,0,0,0.8)' },
+  'retro_vintage': { className: 'aa-retro', font: 'Arial Black', color: '#ffa03c', shadow: '2px 2px 0 #000' },
+  'midnight_blue': { className: 'aa-midnight', font: 'Montserrat', color: '#38bdf8', shadow: '0 0 8px #2563eb' },
+  'true_crime': { className: 'aa-crime', font: 'Courier New', color: '#ef4444', shadow: '0 0 6px #7f1d1d' },
+  'wealth_cash': { className: 'aa-wealth', font: 'Impact', color: '#10df70', shadow: '0 0 8px #059669' },
+  'cosmic_violet': { className: 'aa-cosmic', font: 'Montserrat', color: '#c084fc', shadow: '0 0 8px #9333ea' },
+  'cinematic_bronze': { className: 'aa-bronze', font: 'Cinzel', color: '#f59e0b', shadow: '0 0 8px rgba(245,158,11,0.5)' }
+};
+
+function selectCaptionPreset(card) {
+  document.querySelectorAll('.preset-card-visual').forEach(c => c.classList.remove('active'));
+  if (card) card.classList.add('active');
+  const presetKey = card ? card.dataset.preset : 'capcut_yellow';
+  CAPTION_STATE.preset = presetKey;
+  syncCaptionPreview();
+  const nameEl = card ? card.querySelector('.preset-name') : null;
+  const name = nameEl ? nameEl.textContent : presetKey;
+  showToast(`Applied preset: ${name}`, 'info');
+}
+
+function setCaptionPosition(pos) {
+  CAPTION_STATE.position = pos;
+  ['cap-pos-left', 'cap-pos-right', 'cap-pos-bottom', 'cap-pos-center'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  const activeBtn = document.getElementById(`cap-pos-${pos}`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const box = document.getElementById('stage-caption-box');
+  if (box) {
+    box.classList.remove('pos-bottom', 'pos-center', 'pos-left', 'pos-right');
+    box.classList.add(`pos-${pos}`);
+  }
+}
+
+function setCaptionSize(size) {
+  CAPTION_STATE.size = size;
+  const btnMed = document.getElementById('cap-size-medium');
+  const btnLrg = document.getElementById('cap-size-large');
+  const btnHug = document.getElementById('cap-size-huge');
+  const customRow = document.getElementById('custom-font-size-row');
+  const badge = document.getElementById('caption-font-size-badge');
+
+  [btnMed, btnLrg, btnHug].forEach(el => el && el.classList.remove('active'));
+
+  const sizeMap = {
+    small: { px: 20, label: 'Small (80px)' },
+    medium: { px: 28, label: 'Medium (95px)' },
+    large: { px: 38, label: 'Large (115px)' },
+    huge: { px: 48, label: 'Huge (135px)' },
+    extrahuge: { px: 58, label: '🚀 Extra Huge (160px)' },
+    custom: { px: CAPTION_STATE.customSize, label: `Custom (${CAPTION_STATE.customSize}px)` }
+  };
+
+  if (size === 'medium' && btnMed) btnMed.classList.add('active');
+  else if (size === 'large' && btnLrg) btnLrg.classList.add('active');
+  else if (size === 'huge' && btnHug) btnHug.classList.add('active');
+
+  if (size === 'custom') {
+    if (customRow) customRow.style.display = 'block';
+  } else {
+    if (customRow) customRow.style.display = 'none';
+  }
+
+  if (badge) badge.textContent = sizeMap[size]?.label || `${size}`;
+  syncCaptionPreview();
+}
+
+function onCaptionMoreSelect(val) {
+  if (val) setCaptionSize(val);
+}
+
+function onCustomFontSizeInput(val) {
+  CAPTION_STATE.customSize = parseInt(val, 10) || 115;
+  const badge = document.getElementById('caption-font-size-badge');
+  if (badge) badge.textContent = `Custom (${CAPTION_STATE.customSize}px)`;
+  syncCaptionPreview();
+}
+
+function onCaptionFontFamilyChange(font) {
+  CAPTION_STATE.fontFamily = font;
+  const badge = document.getElementById('caption-font-family-badge');
+  if (badge) badge.textContent = font === 'default' ? 'Default (Template)' : font;
+  syncCaptionPreview();
+}
+
+function toggleCaptionVisibility(visible) {
+  CAPTION_STATE.enabled = visible;
+  const box = document.getElementById('stage-caption-box');
+  if (box) {
+    box.style.display = visible ? 'flex' : 'none';
+  }
+  showToast(visible ? 'Subtitles enabled' : 'Subtitles hidden', 'info');
+}
+
+function toggleCaptionBg(enabled) {
+  CAPTION_STATE.bgBoxEnabled = enabled;
+  const opt = document.getElementById('caption-bg-options');
+  if (opt) opt.style.display = enabled ? 'block' : 'none';
+  syncCaptionPreview();
+}
+
+function updateCaptionBgPreview() {
+  const col = document.getElementById('caption-bg-color')?.value || '#000000';
+  const op = (parseInt(document.getElementById('caption-bg-opacity')?.value || '75', 10)) / 100;
+  CAPTION_STATE.bgColor = col;
+  CAPTION_STATE.bgOpacity = op;
+  syncCaptionPreview();
+}
+
+function syncCaptionPreview() {
+  const box = document.getElementById('stage-caption-box');
+  const content = document.getElementById('stage-caption-content');
+  if (!box || !content) return;
+
+  if (!CAPTION_STATE.enabled) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'flex';
+
+  const cfg = CAPTION_PRESET_CONFIGS[CAPTION_STATE.preset] || CAPTION_PRESET_CONFIGS['capcut_yellow'];
+
+  // Clear previous classes
+  content.className = 'stage-caption-content ' + (cfg.className || '');
+
+  // Font family
+  const finalFont = CAPTION_STATE.fontFamily !== 'default' ? CAPTION_STATE.fontFamily : cfg.font;
+  content.style.fontFamily = `'${finalFont}', sans-serif`;
+
+  // Font size
+  const sizeMap = { small: 20, medium: 28, large: 38, huge: 48, extrahuge: 58 };
+  const fsPx = (CAPTION_STATE.size === 'custom') ? (CAPTION_STATE.customSize / 4) : (sizeMap[CAPTION_STATE.size] || 28);
+  content.style.fontSize = `${fsPx}px`;
+
+  // Background Box
+  if (CAPTION_STATE.bgBoxEnabled) {
+    const r = parseInt(CAPTION_STATE.bgColor.slice(1, 3), 16) || 0;
+    const g = parseInt(CAPTION_STATE.bgColor.slice(3, 5), 16) || 0;
+    const b = parseInt(CAPTION_STATE.bgColor.slice(5, 7), 16) || 0;
+    box.style.background = `rgba(${r}, ${g}, ${b}, ${CAPTION_STATE.bgOpacity})`;
+    box.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+    box.style.borderRadius = '8px';
+  } else {
+    box.style.background = cfg.bg ? cfg.bg : 'transparent';
+    box.style.border = 'none';
+  }
+
+  // Force re-render live demo words
+  const curScene = (timelineItems && timelineItems[currentSceneIndex]) ? timelineItems[currentSceneIndex] : null;
+  renderLiveCaptionWords(curScene?.prompt_text, 0);
+}
+
+// Live caption text rendering with word pop bounce
+function renderLiveCaptionWords(customText, activeWordIndex = 0) {
+  const content = document.getElementById('stage-caption-content');
+  if (!content) return;
+  const text = (customText || '').trim();
+  const rawWords = text ? text.split(/\s+/) : ['WAIT...', 'DID', 'HE', 'REALLY', 'DISCOVER', 'THE', 'NEON', 'PORTAL?!'];
+
+  const cfg = CAPTION_PRESET_CONFIGS[CAPTION_STATE.preset] || CAPTION_PRESET_CONFIGS['capcut_yellow'];
+
+  content.innerHTML = rawWords.map((w, idx) => {
+    const isActive = idx === activeWordIndex;
+    const colorStyle = isActive ? `color: ${cfg.color}; text-shadow: ${cfg.shadow};` : 'color: #ffffff;';
+    return `<span class="demo-word ${isActive ? 'active' : ''}" style="${colorStyle}">${w}</span>`;
+  }).join(' ');
+}
+
+// =============================================
+// CAPCUT MULTI-TRACK TIMELINE & DRAGGABLE SEQUENCE EDITOR
+// =============================================
+let draggedTimelineIndex = null;
+
+function renderCapCutTimeline() {
+  const lane = document.getElementById('capcutVideoTrackLane');
+  const countBadge = document.getElementById('capcutSceneCount');
+  const voiceName = document.getElementById('timelineVoiceFileName');
+  const voiceDur = document.getElementById('timelineVoiceDuration');
+
+  if (!lane) return;
+
+  if (currentProjectData) {
+    if (voiceName) voiceName.textContent = currentProjectData.voiceover_path ? currentProjectData.voiceover_path.replace(/\\/g, '/').split('/').pop() : 'voiceover.mp3';
+    if (voiceDur) voiceDur.textContent = formatTime(currentProjectData.voiceover_duration || 0);
+  }
+
+  if (!timelineItems || timelineItems.length === 0) {
+    lane.innerHTML = `<div style="color: var(--text-dim); padding: 14px; font-size: 12px;">No timeline scenes loaded. Click "⚡ Auto-Sync Audio" above to generate initial sequence.</div>`;
+    if (countBadge) countBadge.textContent = '0';
+    return;
+  }
+
+  if (countBadge) countBadge.textContent = timelineItems.length;
+
+  lane.innerHTML = timelineItems.map((item, idx) => {
+    const isActive = idx === currentSceneIndex;
+    const dur = (parseFloat(item.duration) || 1.33).toFixed(2);
+    const rawImg = item.image_path || item.file_path || item.image_url;
+    const imgSrc = rawImg ? resolveMediaUrl(rawImg) : 'data:image/svg+xml,<svg xmlns=http://www.w3.org/2000/svg viewBox=0 0 100 60><rect width=100 height=60 fill=%231a1a2e/><text y=32 x=50 text-anchor=middle fill=%23f59e0b font-size=8>Missing Image</text></svg>';
+    const isMissing = !rawImg || item.is_missing;
+
+    return `
+      <div class="timeline-scene-card ${isActive ? 'active-scene' : ''} ${isMissing ? 'missing-image' : ''}"
+           id="timeline-card-${idx}"
+           draggable="true"
+           ondragstart="onTimelineCardDragStart(event, ${idx})"
+           ondragover="onTimelineCardDragOver(event, ${idx})"
+           ondrop="onTimelineCardDrop(event, ${idx})"
+           onclick="seekToTimelineScene(${idx})">
+        <img src="${imgSrc}" class="timeline-card-thumb" alt="Scene ${idx + 1}" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 60\\'><rect width=\\'100\\' height=\\'60\\' fill=\\'%231a1a2e\\'/><text y=\\'32\\' x=\\'50\\' text-anchor=\\'middle\\' fill=\\'%23f59e0b\\' font-size=\\'8\\'>Missing Image</text></svg>'; this.parentElement.classList.add('missing-image');" />
+        <div class="timeline-card-meta">
+          <strong style="color: ${isActive ? 'var(--cyan)' : '#fff'};">#${String(idx + 1).padStart(2, '0')}</strong>
+          <span style="color: var(--text-muted); font-size: 10px;">${dur}s</span>
+        </div>
+        <div class="timeline-duration-ctrl" onclick="event.stopPropagation()">
+          <button type="button" class="timeline-dur-btn" onclick="adjustSceneDuration(${idx}, -0.25)" title="Shorten scene by 0.25s">-</button>
+          <span class="timeline-dur-val">${dur}s</span>
+          <button type="button" class="timeline-dur-btn" onclick="adjustSceneDuration(${idx}, 0.25)" title="Extend scene by 0.25s">+</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function onTimelineCardDragStart(e, idx) {
+  draggedTimelineIndex = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', idx);
+  const card = document.getElementById(`timeline-card-${idx}`);
+  if (card) card.classList.add('dragging');
+}
+
+function onTimelineCardDragOver(e, idx) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function onTimelineCardDrop(e, targetIdx) {
+  e.preventDefault();
+  if (draggedTimelineIndex === null || draggedTimelineIndex === targetIdx) return;
+
+  const moved = timelineItems.splice(draggedTimelineIndex, 1)[0];
+  timelineItems.splice(targetIdx, 0, moved);
+  draggedTimelineIndex = null;
+
+  renderCapCutTimeline();
+  showToast(`Moved scene to position #${targetIdx + 1}. Click Save Timeline to apply.`, 'info');
+}
+
+function adjustSceneDuration(idx, delta) {
+  if (!timelineItems[idx]) return;
+  const cur = parseFloat(timelineItems[idx].duration) || 1.33;
+  const updated = Math.max(0.4, Math.round((cur + delta) * 100) / 100);
+  timelineItems[idx].duration = updated;
+
+  let cursor = 0;
+  for (const it of timelineItems) {
+    it.start_time = cursor;
+    cursor += (parseFloat(it.duration) || 1.33);
+    it.end_time = cursor;
+  }
+
+  renderCapCutTimeline();
+  const durVal = document.querySelector(`#timeline-card-${idx} .timeline-dur-val`);
+  if (durVal) durVal.textContent = updated.toFixed(2) + 's';
+}
+
+function seekToTimelineScene(idx) {
+  if (idx < 0 || idx >= timelineItems.length) return;
+  updatePlaybackScene(idx);
+  const audio = document.getElementById('timelineAudioElement');
+  if (audio && timelineItems[idx].start_time !== undefined) {
+    audio.currentTime = timelineItems[idx].start_time;
+  }
+  const promptTxt = timelineItems[idx].prompt_text || `Scene #${idx + 1}`;
+  renderLiveCaptionWords(promptTxt, 0);
+}
+
+async function checkForMissingImages() {
+  if (!timelineItems || timelineItems.length === 0) {
+    showToast('No timeline loaded to verify', 'warn');
+    return;
+  }
+
+  showToast('Scanning all scene image assets on disk...', 'info');
+  let missingCount = 0;
+  const missingIndices = [];
+
+  for (let i = 0; i < timelineItems.length; i++) {
+    const item = timelineItems[i];
+    const rawImg = item.image_path || item.file_path || item.image_url;
+    if (!rawImg) {
+      item.is_missing = true;
+      missingCount++;
+      missingIndices.push(i + 1);
+      continue;
+    }
+
+    try {
+      const testUrl = resolveMediaUrl(rawImg);
+      const res = await fetch(testUrl, { method: 'HEAD' });
+      if (!res.ok) {
+        item.is_missing = true;
+        missingCount++;
+        missingIndices.push(i + 1);
+      } else {
+        item.is_missing = false;
+      }
+    } catch {
+      item.is_missing = true;
+      missingCount++;
+      missingIndices.push(i + 1);
+    }
+  }
+
+  renderCapCutTimeline();
+
+  const banner = document.getElementById('timelineMissingBanner');
+  const txt = document.getElementById('timelineMissingText');
+
+  if (missingCount > 0) {
+    if (banner) banner.style.display = 'flex';
+    if (txt) txt.textContent = `⚠️ ${missingCount} missing image(s) detected: Scenes [${missingIndices.slice(0, 8).join(', ')}${missingIndices.length > 8 ? '...' : ''}]`;
+    showToast(`Found ${missingCount} scenes missing generated images!`, 'warn');
+  } else {
+    if (banner) banner.style.display = 'none';
+    showToast(`✅ All ${timelineItems.length} scene images are present and verified!`, 'success');
+  }
+}
+
+function requeueMissingPrompts() {
+  goToStep(2);
+  showToast('Switched to Step 2 (Workers) to generate missing images', 'info');
+}
+
+function equalizeTimelineDurations() {
+  if (!timelineItems || timelineItems.length === 0) return;
+  const totalDur = (currentProjectData?.voiceover_duration && currentProjectData.voiceover_duration > 0)
+    ? currentProjectData.voiceover_duration
+    : (timelineItems.length * 1.33);
+
+  const equalSlice = Math.round((totalDur / timelineItems.length) * 100) / 100;
+  let cursor = 0;
+  for (const it of timelineItems) {
+    it.duration = equalSlice;
+    it.start_time = cursor;
+    cursor += equalSlice;
+    it.end_time = cursor;
+  }
+
+  renderCapCutTimeline();
+  showToast(`Auto-equalized all ${timelineItems.length} scenes to ${equalSlice}s per image`, 'success');
+}
+
+async function saveTimelineChanges() {
+  if (!activeProjectId) {
+    showToast('No active project to save timeline', 'warn');
+    return;
+  }
+
+  try {
+    showToast('Saving timeline sequence and durations...', 'info');
+    const res = await fetch(`/api/v1/projects/${activeProjectId}/timeline/sync`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: timelineItems })
     });
-  }
-}
-
-function toggleCaptionsMaster() {
-  if (!captionEngine) return;
-  const newState = !captionEngine.enabled;
-  captionEngine.setEnabled(newState);
-  const btn = document.getElementById('btnToggleCaptions');
-  if (btn) {
-    btn.textContent = newState ? '✓ Captions ON' : '✕ Captions OFF';
-    btn.className = newState ? 'btn btn-primary' : 'btn btn-secondary';
-  }
-  const wrap = document.getElementById('captionControlsWrap');
-  if (wrap) wrap.style.opacity = newState ? '1' : '0.4';
-  showToast(newState ? 'Captions enabled' : 'Captions disabled', 'info');
-}
-
-function applyCaptionPreset(presetName, btnEl) {
-  if (!captionEngine) return;
-  captionEngine.applyPreset(presetName);
-  document.querySelectorAll('.caption-preset-btn').forEach(b => b.classList.remove('active'));
-  if (btnEl) btnEl.classList.add('active');
-
-  // Sync inputs with preset
-  const st = captionEngine.style;
-  const fSelect = document.getElementById('captionFontSelect');
-  if (fSelect) fSelect.value = st.fontFamily;
-  const sSlider = document.getElementById('captionFontSizeSlider');
-  if (sSlider) {
-    sSlider.value = st.fontSize;
-    document.getElementById('captionFontSizeLabel').textContent = st.fontSize + 'px';
-  }
-  const hCol = document.getElementById('captionHighlightColor');
-  if (hCol) {
-    hCol.value = st.highlightColor;
-    document.getElementById('captionHighlightHex').textContent = st.highlightColor.toUpperCase();
-  }
-  const aSelect = document.getElementById('captionAnimSelect');
-  if (aSelect) aSelect.value = st.animation;
-  const strSlider = document.getElementById('captionStrokeSlider');
-  if (strSlider) strSlider.value = st.strokeWidth;
-  showToast(`Applied ${presetName.replace('_', ' ')} caption style`, 'success');
-}
-
-function updateCaptionStyle(styleObj) {
-  if (!captionEngine) return;
-  captionEngine.updateStyle(styleObj);
-  if (styleObj.highlightColor) {
-    const hex = document.getElementById('captionHighlightHex');
-    if (hex) hex.textContent = styleObj.highlightColor.toUpperCase();
+    const result = await res.json();
+    if (result.items) {
+      timelineItems = result.items;
+      renderCapCutTimeline();
+      showToast('Timeline changes saved successfully!', 'success');
+    } else {
+      showToast('Timeline saved', 'success');
+    }
+  } catch (err) {
+    showToast(`Error saving timeline: ${err.message}`, 'error');
   }
 }
 
@@ -1648,6 +2096,7 @@ async function loadTimeline() {
     }
 
     renderSceneDirectorCards();
+    renderCapCutTimeline();
     initPlayerListeners();
 
     if (timelineItems.length > 0) {
@@ -1692,8 +2141,20 @@ function initPlayerListeners() {
 
     // Find active scene
     const activeIdx = timelineItems.findIndex(item => curTime >= (item.start_time || 0) && curTime < (item.end_time || 99999));
-    if (activeIdx !== -1 && activeIdx !== currentSceneIndex) {
-      updatePlaybackScene(activeIdx);
+    if (activeIdx !== -1) {
+      if (activeIdx !== currentSceneIndex) {
+        updatePlaybackScene(activeIdx);
+      }
+      const scene = timelineItems[activeIdx];
+      if (scene) {
+        const dur = (scene.end_time || 0) - (scene.start_time || 0);
+        const elapsed = Math.max(0, curTime - (scene.start_time || 0));
+        const words = (scene.prompt_text || '').trim().split(/\s+/);
+        if (words.length > 0 && dur > 0) {
+          const wIdx = Math.min(Math.floor((elapsed / dur) * words.length), words.length - 1);
+          renderLiveCaptionWords(scene.prompt_text, wIdx);
+        }
+      }
     }
   };
 
@@ -1732,6 +2193,17 @@ function updatePlaybackScene(idx) {
     if (i === idx) c.classList.add('active-playing');
     else c.classList.remove('active-playing');
   });
+
+  document.querySelectorAll('.timeline-scene-card').forEach((c, i) => {
+    if (i === idx) {
+      c.classList.add('active-scene');
+      c.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    } else {
+      c.classList.remove('active-scene');
+    }
+  });
+
+  renderLiveCaptionWords(scene.prompt_text || scene.label || ('Scene #' + (idx + 1)), 0);
 }
 
 function togglePlayback() {

@@ -519,6 +519,7 @@ router.get('/ai/key-pool', async (req, res) => {
     res.json({
       success: true,
       key_count: pool.length,
+      keys: pool,
       keys_masked: masked,
       active_cursor: aiEngine._keyCursor || 0
     });
@@ -757,9 +758,32 @@ router.get('/workers/fleet-status', async (req, res) => {
 router.post('/workers/login-assistant', async (req, res) => {
   try {
     const { worker_id = 'W01', provider } = req.body;
-    const workerId = worker_id.toUpperCase();
-    const prov = provider || ((parseInt(workerId.replace('W', ''), 10) % 2 === 1) ? 'meta' : 'flow');
+    const workerId = (worker_id || 'W01').toUpperCase();
 
+    if (workerId === 'ALL') {
+      logger.info('WORKER_LOGIN', 'Launching all 10 worker profiles (W01–W10) for one-time login...');
+      const launched = [];
+      for (let i = 1; i <= 10; i++) {
+        const wId = `W${String(i).padStart(2, '0')}`;
+        const prov = (i % 2 === 1) ? 'meta' : 'flow';
+        try {
+          const result = await profileManager.launchWorker(wId, prov);
+          launched.push({ workerId: wId, provider: prov, success: true, details: result });
+          // stagger launches slightly to prevent process spikes
+          await new Promise(r => setTimeout(r, 400));
+        } catch (lErr) {
+          logger.warn('WORKER_LOGIN', `Failed launching ${wId}: ${lErr.message}`);
+          launched.push({ workerId: wId, provider: prov, success: false, error: lErr.message });
+        }
+      }
+      return res.json({
+        success: true,
+        message: 'Launched workers W01 through W10 for 1-time login. Please complete login in the opened browser windows.',
+        workers: launched
+      });
+    }
+
+    const prov = provider || ((parseInt(workerId.replace('W', ''), 10) % 2 === 1) ? 'meta' : 'flow');
     logger.info('WORKER_LOGIN', `Opening interactive login window for ${workerId} (${prov})...`);
     const launchResult = await profileManager.launchWorker(workerId, prov);
     res.json({
