@@ -1,0 +1,74 @@
+{
+  "author": {
+    "name": "Abid Ali Dev",
+    "email": "abidmmp99@gmail.com",
+    "url": "https://abidalidev.com"
+  },
+  "name": "Veo Flow Automation by Abid Ali Dev",
+  "description": "Auto-generate prompts at scale. Batch generate and auto-download videos and images on Google Flow and Veo.",
+  "version": "3.5.2.0",
+  "version_name": "3.5.2",
+  "manifest_version": 3,
+  "action": {
+    "default_title": "Veo Flow Automation by Abid Ali Dev"
+  },
+  "background": {
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "assets/index.ts-loader-BNP0wsxk.js"
+      ],
+      "all_frames": false,
+      "matches": [
+        "*://flow.google.com/*"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "side_panel": {
+    "default_path": "src/ui/side-panel/index.html"
+  },
+  "offline_enabled": true,
+  "host_permissions": [
+    "*://flow.google.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "background",
+    "sidePanel",
+    "activeTab",
+    "downloads",
+    "debugger",
+    "cookies"
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "*://flow.google.com/*"
+      ],
+      "resources": [
+        "assets/utils-D8jN6fhl.js",
+        "assets/catchUploadFile.ts-DJwIizxX.js",
+        "assets/index.ts-D1zBd6hg.js",
+        "worker-config.js",
+        "src/ui/side-panel/bridge-client.js"
+      ],
+      "use_dynamic_url": false
+    }
+  ],
+  "icons": {
+    "16": "src/assets/icon16.png",
+    "24": "src/assets/icon24.png",
+    "32": "src/assets/icon32.png",
+    "48": "src/assets/icon48.png",
+    "128": "src/assets/icon128.png"
+  },
+  "homepage_url": "https://abidalidev.com"
+}

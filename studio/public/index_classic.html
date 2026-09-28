@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STICKMAN STUDIO — Video Production Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-canvas: #090d16;
+      --bg-panel: #111726;
+      --bg-card: #172033;
+      --bg-card-hover: #1e293b;
+      --border-subtle: #243048;
+      --border-strong: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-flow: #3b82f6;
+      --accent-meta: #8b5cf6;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-cyan: #06b6d4;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-canvas);
+      color: var(--text-main);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TOP HEADER */
+    header {
+      height: 54px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      user-select: none;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #000;
+      font-weight: 800;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+    .brand-title {
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-sub {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 400;
+      border-left: 1px solid var(--border-subtle);
+      padding-left: 8px;
+    }
+
+    /* RESOURCE MONITOR HEADER WIDGET */
+    .resource-monitor {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+    }
+    .metric {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .metric-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 6px var(--accent-emerald);
+    }
+    .metric-val {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .metric-label {
+      color: var(--text-dim);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .mode-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* MAIN WORKSPACE LAYOUT */
+    .workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* SIDEBAR */
+    aside {
+      width: 220px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 8px;
+      user-select: none;
+    }
+    .nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .nav-heading {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 8px 8px 4px;
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-weight: 500;
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+      width: 100%;
+    }
+    .nav-btn:hover {
+      background: var(--bg-card);
+      color: var(--text-main);
+    }
+    .nav-btn.active {
+      background: var(--bg-card);
+      border-color: var(--border-subtle);
+      color: #fff;
+      font-weight: 600;
+    }
+    .nav-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 2;
+    }
+
+    /* MAIN VIEW CONTAINER */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background: var(--bg-canvas);
+    }
+
+    .view-panel {
+      display: none;
+      flex-direction: column;
+      padding: 24px 32px;
+      gap: 20px;
+      max-width: 1300px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .view-panel.active {
+      display: flex;
+    }
+
+    /* SECTION TITLES & CARDS */
+    .view-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 16px;
+    }
+    .view-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .view-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .panel-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* WORKER FARM GRID */
+    .worker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .worker-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .worker-card.flow-worker { border-left: 4px solid var(--accent-flow); }
+    .worker-card.meta-worker { border-left: 4px solid var(--accent-meta); }
+    .worker-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .worker-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .worker-provider {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .prov-flow { background: rgba(59, 130, 246, 0.2); color: var(--accent-flow); }
+    .prov-meta { background: rgba(139, 92, 246, 0.2); color: var(--accent-meta); }
+
+    .worker-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-idle { background: rgba(148, 163, 184, 0.15); color: var(--text-muted); }
+    .badge-generating { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
+    .badge-offline { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); }
+    .badge-login { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
+
+    .worker-details {
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* BUTTONS & CONTROLS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .btn-primary {
+      background: var(--accent-emerald);
+      color: #000;
+    }
+    .btn-primary:hover {
+      background: #059669;
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-strong);
+    }
+    .btn-accent {
+      background: linear-gradient(135deg, var(--accent-flow), var(--accent-meta));
+      color: #fff;
+    }
+
+    /* INPUTS & TEXTAREAS */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .input-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .input-box {
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .input-box:focus {
+      border-color: var(--accent-emerald);
+    }
+    textarea.input-box {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
+    /* TIMELINE TRACKS */
+    .timeline-container {
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .track {
+      height: 38px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+    .track-label {
+      width: 100px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      padding-left: 10px;
+      border-right: 1px solid var(--border-subtle);
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+    .track-content {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 2px 6px;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .track-clip {
+      height: 28px;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    /* HARDWARE WARNING BANNER */
+    .warning-banner {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--accent-amber);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* FOOTER STATUS BAR */
+    footer {
+      height: 28px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      user-select: none;
+    }
+    .footer-left { display: flex; align-items: center; gap: 14px; }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-badge">PRO</div>
+      <div class="brand-title">STICKMAN STUDIO</div>
+      <div class="brand-sub">Video Production Engine</div>
+    </div>
+
+    <!-- LIVE RESOURCE MONITOR -->
+    <div class="resource-monitor" id="resourceMonitor">
+      <div class="metric">
+        <div class="metric-dot" id="systemStatusDot"></div>
+        <span class="metric-label">STATUS</span>
+        <span class="metric-val" id="serverStatusText">ONLINE</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">CPU</span>
+        <span class="metric-val" id="cpuMetric">0%</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">RAM</span>
+        <span class="metric-val" id="ramMetric">-- / -- GB</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">GPU</span>
+        <span class="metric-val" id="gpuMetric">Scanning...</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">WORKERS</span>
+        <span class="metric-val" id="activeWorkersMetric">0 Active</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="mode-pill" id="currentModeBadge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        MODE 2: EXISTING PROMPTS
+      </div>
+      <button class="btn btn-primary" onclick="window.location.href='/'" style="background: linear-gradient(135deg, #00f0ff, #8b5cf6); color: #000; font-weight: 700;">✨ Switch to Next-Gen V2</button>
+        <button class="btn btn-secondary" onclick="openNewProjectModal()">+ New Project</button>
+    </div>
+  </header>
+
+  <!-- WORKSPACE -->
+  <div class="workspace">
+    <!-- NAVIGATION SIDEBAR -->
+    <aside>
+      <div class="nav-group">
+        <div class="nav-heading">Production</div>
+        <button class="nav-btn active" onclick="switchTab('dashboard')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Dashboard
+        </button>
+        <button class="nav-btn" onclick="switchTab('prompts')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Mode 2 Prompts
+        </button>
+        <button class="nav-btn" onclick="switchTab('workers')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          Worker Farm
+        </button>
+        <button class="nav-btn" onclick="switchTab('timeline')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Master Timeline
+        </button>
+        <button class="nav-btn" onclick="switchTab('postprod')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+          Render & Export
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-heading">System</div>
+        <button class="nav-btn" onclick="switchTab('logs')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          Telemetry Logs
+        </button>
+        <button class="nav-btn" onclick="switchTab('settings')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          Settings
+        </button>
+      </div>
+    </aside>
+
+    <!-- CONTENT VIEWS -->
+    <main>
+      <!-- WARNING BANNER IF HARDWARE LOW -->
+      <div id="hardwareWarningBanner" class="warning-banner" style="display: none; margin: 16px 32px 0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        <span id="hardwareWarningText">System memory warning</span>
+      </div>
+
+      <!-- VIEW 1: DASHBOARD -->
+      <div id="view-dashboard" class="view-panel active">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Project Overview</div>
+            <div class="view-desc" id="activeProjectSubtitle">No active project selected</div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <select id="projectSelect" class="input-box" onchange="onSelectProject(this.value)">
+              <option value="">Select Project...</option>
+            </select>
+            <button class="btn btn-primary" onclick="openNewProjectModal()">Create Project</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
+          <div class="panel-card">
+            <div class="card-title">Prompts Total</div>
+            <div style="font-size: 28px; font-weight: 800;" id="statTotalPrompts">0</div>
+            <div style="font-size: 11px; color: var(--text-dim);" id="statTargetPrompts">Target: --</div>
+          </div>
+          <div class="panel-card">
+            <div class="card-title">Completed</div>
+            <div style="font-size: 28px; font-weight: 800; color: var(--accent-emerald);" id="statCompletedPrompts">0</div>
+            <div style="font-size: 11px; color: var(--text-dim);" id="statPercent">0% finished</div>
+          </div>
+          <div class="panel-card">
+            <div class="card-title">In Progress</div>
+            <div style="font-size: 28px; font-weight: 800; color: var(--accent-flow);" id="statGeneratingPrompts">0</div>
+            <div style="font-size: 11px; color: var(--text-dim);">Across active workers</div>
+          </div>
+          <div class="panel-card">
+            <div class="card-title">Repair Queue</div>
+            <div style="font-size: 28px; font-weight: 800; color: var(--accent-rose);" id="statFailedPrompts">0</div>
+            <div style="font-size: 11px; color: var(--text-dim);">Missing / failed IDs</div>
+          </div>
+        </div>
+
+        <!-- QUICK ACTIONS CARD -->
+        <div class="panel-card">
+          <div class="card-title">Active Project Workflow</div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="switchTab('prompts')">1. Import / Inspect Prompts</button>
+            <button class="btn btn-secondary" onclick="switchTab('workers')">2. Configure Workers & Ranges</button>
+            <button class="btn btn-secondary" onclick="switchTab('timeline')">3. Audio & Pacing Timeline</button>
+            <button class="btn btn-primary" onclick="switchTab('postprod')">4. Post-Production Render</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: MODE 1 AI STORY ENGINE (PHASE 5) -->
+      <div id="view-mode1" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title" style="background: linear-gradient(90deg, #8b5cf6, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">&#x2728; Mode 1: AI Story Engine</div>
+            <div class="view-desc">Paste your voiceover script &rarr; Groq (<span id="m1CurrentModel" style="color: #06b6d4; font-weight: 600;">openai/gpt-oss-120b</span>) generates the complete stickman visual prompt list &rarr; approve &rarr; execute via Mode 2 pipeline.</div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" onclick="loadAiModelInfo()">&#x21BB; Refresh Model</button>
+            <button class="btn btn-primary" id="m1GenerateBtn" onclick="triggerMode1Generate()" style="background: linear-gradient(135deg, #8b5cf6, #06b6d4); border: none;">
+              &#x26A1; Generate Story Prompts
+            </button>
+          </div>
+        </div>
+
+        <!-- GENERATION PROGRESS OVERLAY -->
+        <div id="m1ProgressOverlay" style="display: none; background: rgba(9,13,22,0.92); border: 1px solid #8b5cf6; border-radius: 8px; padding: 28px; margin-bottom: 14px; text-align: center;">
+          <div style="font-size: 22px; font-weight: 800; background: linear-gradient(90deg, #8b5cf6, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px;">Groq AI Processing...</div>
+          <div id="m1ProgressStatus" style="color: #94a3b8; font-size: 13px; margin-bottom: 16px;">Sending script to openai/gpt-oss-120b for visual scene decomposition...</div>
+          <div style="background: #172033; border-radius: 6px; height: 6px; overflow: hidden;">
+            <div id="m1ProgressBar" style="height: 100%; background: linear-gradient(90deg, #8b5cf6, #06b6d4); width: 0%; transition: width 0.4s ease; border-radius: 6px;"></div>
+          </div>
+          <div id="m1ProgressPct" style="font-size: 11px; color: #64748b; margin-top: 6px;">0%</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+
+          <!-- LEFT: INPUTS -->
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+
+            <!-- Video Title -->
+            <div class="panel-card">
+              <div class="card-title">&#x1F3AC; Video Title</div>
+              <div class="input-group">
+                <input id="m1VideoTitle" class="input-box" placeholder="e.g. The Cipher of Shadows: A Stickman Documentary" value="Stickman Studio Mode 1 Production">
+              </div>
+            </div>
+
+            <!-- Master Prompt (V7 Stickman Aesthetic Laws) -->
+            <div class="panel-card">
+              <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>&#x1F9E0; Master Prompt (Visual Aesthetic Laws)</span>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn btn-secondary" onclick="loadDefaultMasterPrompt()" style="font-size: 11px; padding: 3px 8px;">Load V7 Default</button>
+                  <button class="btn btn-secondary" onclick="document.getElementById('m1MasterPrompt').value=''" style="font-size: 11px; padding: 3px 8px;">Clear</button>
+                </div>
+              </div>
+              <div style="font-size: 11px; color: #64748b; margin-bottom: 6px;">Overrides or extends visual laws. Passed directly to Groq system prompt.</div>
+              <textarea id="m1MasterPrompt" class="input-box" rows="5"
+                placeholder="Paste custom Master Prompt rules or click 'Load V7 Default'..."
+                style="font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5; resize: vertical;"></textarea>
+            </div>
+
+            <!-- Script Input -->
+            <div class="panel-card">
+              <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>&#x1F4DC; Voiceover Script</span>
+                <span id="m1ScriptWordCount" style="font-size: 11px; color: #64748b;">0 words</span>
+              </div>
+              <textarea id="m1ScriptInput" class="input-box" rows="10"
+                placeholder="Paste your full voiceover script here. Alex woke up at 3am, heart pounding. The message had arrived. One line of code - the cipher of shadows..."
+                oninput="updateM1WordCount()"
+                style="font-family: 'Inter', sans-serif; line-height: 1.6; resize: vertical;"></textarea>
+            </div>
+
+            <!-- Voiceover, Audio & Optional Music -->
+            <div class="panel-card">
+              <div class="card-title">&#x1F50A; Voiceover Audio &amp; Optional Music</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+                <div class="input-group">
+                  <label class="input-label">Voiceover Duration (seconds)</label>
+                  <input id="m1Duration" type="number" class="input-box" value="24" min="1" max="600" oninput="updateM1TargetEstimate()">
+                </div>
+                <div class="input-group">
+                  <label class="input-label">Voiceover Audio File (optional path)</label>
+                  <input id="m1VoiceoverPath" class="input-box" placeholder="e.g. C:/audio/voiceover.wav">
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                <div class="input-group">
+                  <label class="input-label">Optional Background Music Path</label>
+                  <input id="m1MusicPath" class="input-box" placeholder="e.g. C:/audio/bg_music.mp3">
+                </div>
+                <div class="input-group">
+                  <label class="input-label">Music Volume (0.00 - 1.00)</label>
+                  <input id="m1MusicVolume" type="number" step="0.01" min="0" max="1" class="input-box" value="0.07">
+                </div>
+              </div>
+            </div>
+
+            <!-- Pacing Presets -->
+            <div class="panel-card">
+              <div class="card-title">&#x23F1; Pacing &amp; Target Count</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="input-group">
+                  <label class="input-label">Pacing Preset</label>
+                  <select id="m1Pacing" class="input-box" onchange="updateM1TargetEstimate()">
+                    <option value="1/4s">1 image / 4s (slow, cinematic)</option>
+                    <option value="2/4s" selected>2 images / 4s (standard - 1 per 2s)</option>
+                    <option value="3/4s">3 images / 4s (brisk)</option>
+                    <option value="4/4s">4 images / 4s (fast-cut)</option>
+                    <option value="5/4s">5 images / 4s (kinetic)</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label class="input-label">Custom Count (override)</label>
+                  <input id="m1CustomCount" type="number" class="input-box" placeholder="Leave blank for auto" min="1" max="500" oninput="updateM1TargetEstimate()">
+                </div>
+                <div class="input-group" style="grid-column: span 2;">
+                  <label class="input-label">Calculated Target Prompts</label>
+                  <div id="m1EstimatedCount" class="input-box" style="background: #090d16; color: #06b6d4; font-weight: 700; font-family: 'JetBrains Mono', monospace; cursor: default;">12 prompts</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Character Reference & Story Bible Hints -->
+            <div class="panel-card">
+              <div class="card-title">&#x1F9D1; Character Reference &amp; Continuity</div>
+              <div class="input-group">
+                <label class="input-label">Protagonist Description (optional)</label>
+                <input id="m1CharacterRef" class="input-box" placeholder="e.g. Alex: tall stickman with messy hair carrying a worn briefcase" value="Alex: 2D minimalist stickman hero">
+              </div>
+              <div class="input-group">
+                <label class="input-label">Recurring Visual Elements / Motifs (optional)</label>
+                <input id="m1VisualElements" class="input-box" placeholder="e.g. chalk arrows, financial graphs, glowing monitor" value="Chalk diagrams, glowing monitor screen, clock at 3 AM">
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT: OUTPUT + APPROVAL -->
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+
+            <!-- Story Bible Card -->
+            <div class="panel-card" id="m1StoryBibleCard" style="display: none; border-color: #8b5cf6;">
+              <div class="card-title" style="color: #8b5cf6;">&#x1F4D6; Story Bible (AI Generated)</div>
+              <div id="m1StoryBibleContent" style="font-size: 12px; color: #94a3b8; line-height: 1.7;"></div>
+            </div>
+
+            <!-- Generation Result -->
+            <div class="panel-card" id="m1ResultCard" style="display: none; border-color: #10b981;">
+              <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #10b981;">&#x2705; Generation Complete</span>
+                <span id="m1ResultBadge" style="font-size: 11px; color: #64748b; font-weight: 400;"></span>
+              </div>
+              <div id="m1ResultStats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;"></div>
+
+              <!-- Approve & Execute -->
+              <div style="background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(6,182,212,0.1)); border: 1px solid #10b981; border-radius: 6px; padding: 14px; margin-bottom: 10px;">
+                <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; color: #10b981;">&#x1F680; Ready for Execution</div>
+                <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Prompts have been imported into the Mode 2 pipeline. Approve to start worker execution.</div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-primary" onclick="approveAndExecuteMode1()" style="flex: 1; background: linear-gradient(135deg, #10b981, #06b6d4); border: none; font-weight: 700;">&#x25B6; Approve &amp; Start Workers</button>
+                  <button class="btn btn-secondary" onclick="switchTab('prompts')" style="flex: 1;">&#x1F4CB; Review Prompts First</button>
+                </div>
+              </div>
+
+              <button class="btn btn-secondary" onclick="triggerMode1Generate()" style="width: 100%; font-size: 12px;">&#x21BB; Regenerate with Same Settings</button>
+            </div>
+
+            <!-- Generated Prompt Preview -->
+            <div class="panel-card" id="m1PreviewCard" style="display: none;">
+              <div class="card-title">
+                <span>&#x1F4CB; Generated Prompt Preview</span>
+                <span id="m1PreviewCount" style="font-size: 11px; color: #64748b;"></span>
+              </div>
+              <div id="m1PreviewContainer" style="display: flex; flex-direction: column; gap: 5px; max-height: 340px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px;"></div>
+            </div>
+
+            <!-- Model Config Card -->
+            <div class="panel-card">
+              <div class="card-title">&#x2699; AI Model Configuration</div>
+              <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end;">
+                <div class="input-group" style="margin-bottom: 0;">
+                  <label class="input-label">Groq Primary Model</label>
+                  <select id="m1ModelSelect" class="input-box" onchange="saveModelConfig()">
+                    <option value="openai/gpt-oss-120b" selected>openai/gpt-oss-120b (Primary)</option>
+                    <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (Fast)</option>
+                    <option value="mixtral-8x7b-32768">mixtral-8x7b-32768 (Balanced)</option>
+                  </select>
+                </div>
+                <button class="btn btn-secondary" onclick="saveModelConfig()" style="white-space: nowrap;">&#x1F4BE; Save</button>
+              </div>
+              <div id="m1ModelSaveStatus" style="font-size: 11px; color: #64748b; margin-top: 6px;"></div>
+              <div style="margin-top: 10px; padding: 10px; background: #090d16; border-radius: 6px; font-size: 11px; color: #64748b; line-height: 1.6;">
+                <strong style="color: #f59e0b;">&#x1F512; Provider Priority:</strong><br>
+                1. Groq (Primary - cloud, fast, high quality)<br>
+                2. Ollama (Emergency local fallback - llama3:latest)<br>
+                3. Synthetic (Offline test fallback - deterministic)
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: MODE 2 PROMPTS -->
+      <div id="view-prompts" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Mode 2: Clean Prompt List Manager</div>
+            <div class="view-desc">Import, validate sequential numbering (001_...), detect gaps/duplicates, and assign ranges.</div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" onclick="importPromptList()">Validate & Import</button>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-title">Paste Sequential Prompt List</div>
+          <textarea id="rawPromptsInput" class="input-box" rows="12" placeholder="001_2D minimalist hand-drawn stickman sketch, Alex waking up in bed...&#10;002_2D stickman Alex walking toward wooden table...&#10;003_2D stickman Alex pouring black ink into mug..."></textarea>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim);">
+            <span>Strict format: 001_prompt text... (one image per line, no metadata blocks)</span>
+            <span id="promptValidationNotice"></span>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-title">
+            <span>Imported Project Prompts</span>
+            <span style="font-size: 11px; color: var(--text-dim);" id="importedPromptCountBadge">0 prompts loaded</span>
+          </div>
+          <div id="promptListContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 400px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+            <div style="color: var(--text-dim); padding: 10px;">No prompts loaded. Paste clean prompts above and click Validate & Import.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 3: WORKER FARM -->
+      <div id="view-workers" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Dynamic Worker Farm (W01 - W10)</div>
+            <div class="view-desc">Provision and control isolated browser workers. Maximum 10 active workers architecture limit.</div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-secondary" onclick="openAssignRangesModal()">Assign Fixed Ranges</button>
+            <button class="btn btn-primary" onclick="refreshWorkers()">&#x21BB; Refresh Farm</button>
+          </div>
+        </div>
+
+        <!-- HARDWARE TELEMETRY & WARNING BANNER -->
+        <div class="panel-card" style="margin-bottom: 14px; background: rgba(15,23,42,0.6);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-weight: 700; font-size: 13px; color: #94a3b8;">&#x1F4BB; Hardware Concurrency &amp; Memory Telemetry</div>
+            <div id="farmActiveBadge" style="font-size: 12px; font-weight: 700; color: #06b6d4; font-family: 'JetBrains Mono', monospace;">0 / 10 Active Workers</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px; margin-bottom: 8px;">
+            <div style="background: #090d16; padding: 8px 12px; border-radius: 6px; border: 1px solid #1e293b;">
+              <span style="color: #64748b;">Physical RAM:</span> <strong id="teleTotalRam" style="color: #f8fafc;">16.0 GB</strong>
+            </div>
+            <div style="background: #090d16; padding: 8px 12px; border-radius: 6px; border: 1px solid #1e293b;">
+              <span style="color: #64748b;">Used RAM:</span> <strong id="teleUsedRam" style="color: #f59e0b;">-- GB</strong>
+            </div>
+            <div style="background: #090d16; padding: 8px 12px; border-radius: 6px; border: 1px solid #1e293b;">
+              <span style="color: #64748b;">Free RAM:</span> <strong id="teleFreeRam" style="color: #10b981;">-- GB</strong>
+            </div>
+            <div style="background: #090d16; padding: 8px 12px; border-radius: 6px; border: 1px solid #1e293b;">
+              <span style="color: #64748b;">Arch Maximum:</span> <strong style="color: #8b5cf6;">10 Workers</strong>
+            </div>
+          </div>
+          <div id="farmRamWarning" style="display: none; padding: 8px 12px; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; border-radius: 6px; color: #fbbf24; font-size: 12px;"></div>
+        </div>
+
+        <!-- FARM CONFIGURATION & LAUNCH BAR -->
+        <div class="panel-card" style="margin-bottom: 14px;">
+          <div class="card-title">&#x2699;&#xFE0F; Farm Launch Controls</div>
+          <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+            <div class="input-group" style="width: 140px;">
+              <label class="input-label">Flow Workers</label>
+              <input id="farmFlowCount" type="number" min="0" max="10" value="1" class="input-box" oninput="updateFarmConfigTotal()">
+            </div>
+            <div class="input-group" style="width: 140px;">
+              <label class="input-label">Meta Workers</label>
+              <input id="farmMetaCount" type="number" min="0" max="10" value="1" class="input-box" oninput="updateFarmConfigTotal()">
+            </div>
+            <div class="input-group" style="width: 160px;">
+              <label class="input-label">Configured Total</label>
+              <div id="farmConfiguredTotal" class="input-box" style="background: #090d16; color: #06b6d4; font-weight: 700; font-family: 'JetBrains Mono', monospace; cursor: default;">2 / 10</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-primary" onclick="launchConfiguredFarm()">&#x25B6; Launch Farm</button>
+              <button class="btn btn-secondary" onclick="stopAllWorkers()" style="color: #f43f5e; border-color: #f43f5e;">&#x23F9; Stop All</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="worker-grid" id="workerFarmGrid">
+          <!-- Dynamic Worker Cards rendered via JS -->
+        </div>
+      </div>
+
+      <!-- VIEW 4: TIMELINE -->
+      <div id="view-timeline" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Master Voiceover Timeline</div>
+            <div class="view-desc">Multi-track audio-synchronized timeline using configurable pacing presets.</div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <label class="input-label" style="margin: 0;">Pacing:</label>
+            <select id="pacingSelect" class="input-box" style="padding: 4px 8px; font-size: 12px;">
+              <option value="1/4s">1 img / 4s (0.25x)</option>
+              <option value="2/4s" selected>2 img / 4s (0.50x) [Default]</option>
+              <option value="3/4s">3 img / 4s (0.75x)</option>
+              <option value="4/4s">4 img / 4s (1.00x)</option>
+              <option value="5/4s">5 img / 4s (1.25x)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="timeline-container">
+          <div class="track">
+            <div class="track-label">VIDEO</div>
+            <div class="track-content" id="timelineTrackVideo">
+              <div class="track-clip">001_stickman (2.0s)</div>
+              <div class="track-clip">002_stickman (2.0s)</div>
+              <div class="track-clip">003_stickman (2.0s)</div>
+              <div class="track-clip">004_stickman (2.0s)</div>
+            </div>
+          </div>
+          <div class="track">
+            <div class="track-label">VOICEOVER</div>
+            <div class="track-content" id="timelineTrackVO">
+              <div class="track-clip" style="background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.4); width: 100%;">Master Voiceover (01:12)</div>
+            </div>
+          </div>
+          <div class="track">
+            <div class="track-label">CAPTIONS</div>
+            <div class="track-content" id="timelineTrackCaptions">
+              <div class="track-clip" style="background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4);">Groq Whisper Word Timing</div>
+            </div>
+          </div>
+          <div class="track">
+            <div class="track-label">SFX</div>
+            <div class="track-content" id="timelineTrackSFX">
+              <div class="track-clip" style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4);">Whoosh (0.8s)</div>
+            </div>
+          </div>
+          <div class="track">
+            <div class="track-label">MUSIC 7%</div>
+            <div class="track-content" id="timelineTrackMusic">
+              <div class="track-clip" style="background: rgba(6, 182, 212, 0.2); border-color: rgba(6, 182, 212, 0.4); width: 100%;">Background Track (Ducking: ON, Vol: 7%)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 5: POST PRODUCTION & RENDER -->
+      <div id="view-postprod" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Render & Export Engine</div>
+            <div class="view-desc">Bundled FFmpeg: 1920x1080 @ 30 FPS, H.264, AAC 320 kbps MP4.</div>
+          </div>
+          <div>
+            <button class="btn btn-primary" onclick="startRender()">Export 1080p MP4</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px;">
+          <div class="panel-card">
+            <div class="card-title">Production Render Configuration</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="input-group">
+                <label class="input-label">Output Resolution</label>
+                <input class="input-box" value="1920x1080 (16:9)" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Frame Rate</label>
+                <input class="input-box" value="30 FPS" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Video Codec</label>
+                <input class="input-box" value="libx264 (CRF 18 High Quality)" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Audio Codec</label>
+                <input class="input-box" value="AAC 320 kbps Stereo" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Background Music Volume</label>
+                <input class="input-box" value="7% (Locked Studio Default)" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Voiceover Ducking</label>
+                <input class="input-box" value="Enabled (Sidechain Compression)" readonly>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="card-title">Export Status</div>
+            <div id="renderStatusBox" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); display: flex; flex-direction: column; gap: 8px;">
+              <div>Ready for export.</div>
+              <div>FFmpeg binary: studio/bin/ffmpeg.exe</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 6: LOGS -->
+      <div id="view-logs" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">System & Telemetry Logs</div>
+            <div class="view-desc">Live audit logs for worker polling, job leases, and file validation.</div>
+          </div>
+          <button class="btn btn-secondary" onclick="fetchLogs()">Refresh Logs</button>
+        </div>
+
+        <div class="panel-card" style="padding: 10px;">
+          <div id="logsContainer" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; max-height: 500px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 6px;">
+            <div>Loading logs...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 7: SETTINGS -->
+      <div id="view-settings" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Studio Settings</div>
+            <div class="view-desc">Configure AI providers, worker profiles, and local directories.</div>
+          </div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-title">Primary AI Provider (Groq)</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="input-group">
+              <label class="input-label">Primary Groq Model</label>
+              <input id="settingGroqModel" class="input-box" value="openai/gpt-oss-120b">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Fallback Model</label>
+              <input id="settingGroqFallback" class="input-box" value="openai/gpt-oss-20b">
+            </div>
+            <div class="input-group" style="grid-column: span 2;">
+              <label class="input-label">Groq API Key (Secure Local Storage)</label>
+              <input id="settingGroqKey" type="password" class="input-box" placeholder="gsk_...">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-title">Offline Emergency Fallback (Ollama)</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="input-group">
+              <label class="input-label">Ollama Host</label>
+              <input class="input-box" value="http://127.0.0.1:11434">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Ollama Model</label>
+              <input class="input-box" value="llama3.2:latest">
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- FOOTER STATUS BAR -->
+  <footer>
+    <div class="footer-left">
+      <span>Stickman Studio v1.0.0</span>
+      <span>•</span>
+      <span id="footerActiveProject">Active Project: None</span>
+      <span>•</span>
+      <span id="footerDbStatus">SQLite: WAL Mode</span>
+    </div>
+    <div class="footer-right">
+      <span>API: 127.0.0.1:45450</span>
+    </div>
+  </footer>
+
+  <!-- MODAL: NEW PROJECT -->
+  <div id="newProjectModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 8px; width: 480px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-weight: 700; font-size: 16px;">Create Stickman Project</div>
+      <div class="input-group">
+        <label class="input-label">Project Name</label>
+        <input id="modalProjName" class="input-box" placeholder="e.g. The Cipher of Shadows">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Operating Mode</label>
+        <select id="modalProjMode" class="input-box">
+          <option value="MODE_2" selected>Mode 2: Existing Prompt List (MVP)</option>
+          <option value="MODE_1">Mode 1: Generate Everything (AI Story Engine)</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Voiceover Duration (Seconds)</label>
+        <input id="modalProjDuration" type="number" class="input-box" value="72">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Pacing Preset</label>
+        <select id="modalProjPacing" class="input-box">
+          <option value="2/4s" selected>2 images / 4 sec (0.50x) [Default]</option>
+          <option value="1/4s">1 image / 4 sec (0.25x)</option>
+          <option value="3/4s">3 images / 4 sec (0.75x)</option>
+          <option value="4/4s">4 images / 4 sec (1.00x)</option>
+        </select>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+        <button class="btn btn-secondary" onclick="closeNewProjectModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitNewProject()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeProjectId = '';
+
+    // Switch view panel tabs
+    function switchTab(tabId) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+      const targetView = document.getElementById(`view-${tabId}`);
+      if (targetView) targetView.classList.add('active');
+
+      const activeNav = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
+      if (activeNav) activeNav.classList.add('active');
+
+      if (tabId === 'workers') refreshWorkers();
+      if (tabId === 'logs') fetchLogs();
+      if (tabId === 'prompts') loadProjectPrompts();
+      if (tabId === 'settings') loadSettings();
+      if (tabId === 'mode1') { loadAiModelInfo(); updateM1TargetEstimate(); }
+    }
+
+
+    // =============================================
+    // MODE 1 AI STORY ENGINE - FRONTEND LOGIC
+    // =============================================
+    let m1LastResult = null;
+
+    function updateM1WordCount() {
+      const script = document.getElementById('m1ScriptInput').value;
+      const words = script.trim() ? script.trim().split(/\s+/).length : 0;
+      document.getElementById('m1ScriptWordCount').textContent = words + ' words';
+    }
+
+    const PACING_RATES = {
+      '1/4s': 0.25, '2/4s': 0.50, '3/4s': 0.75, '4/4s': 1.00, '5/4s': 1.25
+    };
+
+    function updateM1TargetEstimate() {
+      const custom = parseInt(document.getElementById('m1CustomCount').value);
+      if (custom && custom > 0) {
+        document.getElementById('m1EstimatedCount').textContent = custom + ' prompts (custom)';
+        return;
+      }
+      const secs = parseFloat(document.getElementById('m1Duration').value) || 72;
+      const pacing = document.getElementById('m1Pacing').value;
+      const rate = PACING_RATES[pacing] || 0.50;
+      const est = Math.max(1, Math.round(secs * rate));
+      document.getElementById('m1EstimatedCount').textContent = est + ' prompts';
+    }
+
+    async function loadAiModelInfo() {
+      try {
+        const res = await fetch('/api/v1/ai/models');
+        const data = await res.json();
+        const model = data.primary_model || 'openai/gpt-oss-120b';
+        document.getElementById('m1CurrentModel').textContent = model;
+        const sel = document.getElementById('m1ModelSelect');
+        if (sel) {
+          for (let opt of sel.options) { if (opt.value === model) { sel.value = model; break; } }
+        }
+      } catch (e) {}
+    }
+
+    async function saveModelConfig() {
+      const model = document.getElementById('m1ModelSelect').value;
+      const statusEl = document.getElementById('m1ModelSaveStatus');
+      try {
+        const res = await fetch('/api/v1/ai/model-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ primary_model: model })
+        });
+        const data = await res.json();
+        if (data.success) {
+          statusEl.textContent = '\u2705 Saved: ' + model;
+          statusEl.style.color = '#10b981';
+          document.getElementById('m1CurrentModel').textContent = model;
+        }
+      } catch (e) {
+        statusEl.textContent = '\u274C Save failed: ' + e.message;
+        statusEl.style.color = '#f43f5e';
+      }
+    }
+
+    function setM1Progress(pct, statusText) {
+      document.getElementById('m1ProgressBar').style.width = pct + '%';
+      document.getElementById('m1ProgressPct').textContent = pct + '%';
+      document.getElementById('m1ProgressStatus').textContent = statusText;
+    }
+
+    async function triggerMode1Generate() {
+      if (!activeProjectId) {
+        alert('Select or create a project first. Go to Dashboard and click "Create Project".');
+        return;
+      }
+      const scriptText = document.getElementById('m1ScriptInput').value.trim();
+      if (!scriptText) {
+        alert('Paste your voiceover script first.');
+        document.getElementById('m1ScriptInput').focus();
+        return;
+      }
+      const duration = parseFloat(document.getElementById('m1Duration').value) || 72;
+      const pacing = document.getElementById('m1Pacing').value;
+      const customCountRaw = document.getElementById('m1CustomCount').value;
+      const customCount = customCountRaw ? parseInt(customCountRaw) : null;
+
+      document.getElementById('m1ProgressOverlay').style.display = 'block';
+      document.getElementById('m1ResultCard').style.display = 'none';
+      document.getElementById('m1StoryBibleCard').style.display = 'none';
+      document.getElementById('m1PreviewCard').style.display = 'none';
+      document.getElementById('m1GenerateBtn').disabled = true;
+      document.getElementById('m1GenerateBtn').textContent = 'Generating...';
+
+      setM1Progress(5, 'Sending script to Groq AI for visual scene decomposition...');
+      const progressSteps = [
+        [15, 'Analysing narrative structure and scene boundaries...'],
+        [30, 'Building Story Bible - protagonist and recurring elements...'],
+        [50, 'Generating sequential visual stickman prompts...'],
+        [70, 'Applying stickman format rules and sequential numbering...'],
+        [85, 'Validating JSON output and prompt count...'],
+        [92, 'Importing into Mode 2 pipeline database...'],
+      ];
+      let stepIdx = 0;
+      const progressTimer = setInterval(function() {
+        if (stepIdx < progressSteps.length) {
+          setM1Progress(progressSteps[stepIdx][0], progressSteps[stepIdx][1]);
+          stepIdx++;
+        }
+      }, 1800);
+
+      try {
+        const res = await fetch('/api/v1/projects/' + activeProjectId + '/ai/generate-prompts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            video_title: document.getElementById('m1VideoTitle')?.value || '',
+            master_prompt: document.getElementById('m1MasterPrompt')?.value || '',
+            script_text: scriptText,
+            voiceover_seconds: duration,
+            voiceover_path: document.getElementById('m1VoiceoverPath')?.value || '',
+            optional_music: document.getElementById('m1MusicPath')?.value || '',
+            music_volume: parseFloat(document.getElementById('m1MusicVolume')?.value) || 0.07,
+            pacing_preset: pacing,
+            custom_count: customCount,
+            character_reference: document.getElementById('m1CharacterRef')?.value || '',
+            visual_elements: document.getElementById('m1VisualElements')?.value || ''
+          })
+        });
+        clearInterval(progressTimer);
+        const result = await res.json();
+        if (!res.ok || result.error) { throw new Error(result.error || 'Generation failed'); }
+        setM1Progress(100, 'Complete! Prompts imported into Mode 2 pipeline.');
+        await new Promise(function(r) { setTimeout(r, 600); });
+        document.getElementById('m1ProgressOverlay').style.display = 'none';
+        m1LastResult = result;
+        renderM1Result(result);
+        loadProjectPrompts();
+        onSelectProject(activeProjectId);
+      } catch (err) {
+        clearInterval(progressTimer);
+        setM1Progress(0, 'Error: ' + err.message);
+        document.getElementById('m1ProgressBar').style.background = '#f43f5e';
+        document.getElementById('m1ProgressStatus').style.color = '#f43f5e';
+        setTimeout(function() {
+          document.getElementById('m1ProgressOverlay').style.display = 'none';
+          document.getElementById('m1ProgressBar').style.background = 'linear-gradient(90deg, #8b5cf6, #06b6d4)';
+        }, 3500);
+      } finally {
+        document.getElementById('m1GenerateBtn').disabled = false;
+        document.getElementById('m1GenerateBtn').textContent = '\u26A1 Generate Story Prompts';
+      }
+    }
+
+    function renderM1Result(result) {
+      if (result.story_bible) {
+        const bible = result.story_bible;
+        const bibleEl = document.getElementById('m1StoryBibleContent');
+        bibleEl.innerHTML =
+          '<div style="margin-bottom:8px;"><strong style="color:#8b5cf6;">Protagonist:</strong> ' + (bible.protagonist || 'N/A') + '</div>' +
+          '<div style="margin-bottom:8px;"><strong style="color:#8b5cf6;">Setting:</strong> ' + (bible.setting || 'N/A') + '</div>' +
+          '<div><strong style="color:#8b5cf6;">Recurring Elements:</strong> ' + (Array.isArray(bible.recurring_elements) ? bible.recurring_elements.join(', ') : (bible.recurring_elements || 'N/A')) + '</div>';
+        document.getElementById('m1StoryBibleCard').style.display = 'block';
+      }
+      const stats = [
+        { label: 'Provider', value: result.provider || 'groq', color: result.provider === 'groq' ? '#10b981' : '#f59e0b' },
+        { label: 'Model', value: (result.model || '').split('/').pop(), color: '#06b6d4' },
+        { label: 'Prompts', value: result.generated_count || result.target_count, color: '#10b981' },
+      ];
+      document.getElementById('m1ResultStats').innerHTML = stats.map(function(s) {
+        return '<div style="background:#090d16;border-radius:6px;padding:8px 10px;text-align:center;">' +
+               '<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">' + s.label + '</div>' +
+               '<div style="font-size:14px;font-weight:700;color:' + s.color + ';margin-top:2px;">' + s.value + '</div>' +
+               '</div>';
+      }).join('');
+      document.getElementById('m1ResultBadge').textContent = (result.first_prompt || '001') + ' to ' + (result.last_prompt || ('0' + result.generated_count));
+      document.getElementById('m1ResultCard').style.display = 'block';
+      loadM1PreviewPrompts();
+    }
+
+    async function loadM1PreviewPrompts() {
+      if (!activeProjectId) return;
+      try {
+        const res = await fetch('/api/v1/projects/' + activeProjectId + '/prompts');
+        const prompts = await res.json();
+        const container = document.getElementById('m1PreviewContainer');
+        document.getElementById('m1PreviewCount').textContent = prompts.length + ' prompts';
+        if (prompts.length === 0) {
+          container.innerHTML = '<div style="color:#64748b;padding:10px;">No prompts loaded.</div>';
+        } else {
+          container.innerHTML = prompts.slice(0, 60).map(function(p) {
+            return '<div style="background:#090d16;padding:5px 8px;border-radius:3px;border-left:2px solid #8b5cf6;line-height:1.4;">' +
+                   '<span style="color:#8b5cf6;font-weight:600;">' + p.prompt_id_str + '</span>' +
+                   '<span style="color:#94a3b8;margin-left:6px;">' + p.prompt_text.slice(0, 100) + (p.prompt_text.length > 100 ? '...' : '') + '</span>' +
+                   '</div>';
+          }).join('');
+          if (prompts.length > 60) {
+            container.innerHTML += '<div style="color:#64748b;padding:5px;">...and ' + (prompts.length - 60) + ' more prompts</div>';
+          }
+        }
+        document.getElementById('m1PreviewCard').style.display = 'block';
+      } catch (e) {}
+    }
+
+    async function approveAndExecuteMode1() {
+      if (!activeProjectId) return;
+      switchTab('workers');
+      refreshWorkers();
+      const banner = document.getElementById('hardwareWarningBanner');
+      const bannerText = document.getElementById('hardwareWarningText');
+      bannerText.textContent = '\u2705 Mode 1 prompts approved. Workers will pick up jobs automatically on next poll cycle.';
+      banner.style.display = 'flex';
+      banner.style.borderColor = '#10b981';
+      banner.style.background = 'rgba(16,185,129,0.1)';
+      setTimeout(function() {
+        banner.style.display = 'none';
+        banner.style.borderColor = '';
+        banner.style.background = '';
+      }, 7000);
+    }
+
+    // Poll System Resources every 2.5s
+    async function pollResources() {
+      try {
+        const res = await fetch('/api/v1/system/resources');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById('cpuMetric').textContent = `${data.cpu_percent}%`;
+        document.getElementById('ramMetric').textContent = `${data.ram_used_gb} / ${data.ram_total_gb} GB (${data.ram_percent}%)`;
+        document.getElementById('gpuMetric').textContent = data.gpu_name ? `${data.gpu_name.split(' ')[0]} (${data.gpu_vram_gb} GB)` : 'Active';
+        document.getElementById('activeWorkersMetric').textContent = `${data.active_workers} Active (${data.flow_workers_active}F, ${data.meta_workers_active}M)`;
+
+        // Hardware warning
+        const warnBanner = document.getElementById('hardwareWarningBanner');
+        if (data.hardware_warning) {
+          warnBanner.style.display = 'flex';
+          document.getElementById('hardwareWarningText').textContent = data.hardware_warning.message;
+        } else {
+          warnBanner.style.display = 'none';
+        }
+      } catch (err) {}
+    }
+    setInterval(pollResources, 2500);
+    pollResources();
+
+    // Fetch Projects list
+    async function loadProjects() {
+      try {
+        const res = await fetch('/api/v1/projects');
+        const list = await res.json();
+        const select = document.getElementById('projectSelect');
+        select.innerHTML = '<option value="">Select Project...</option>';
+        list.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `${p.name} (${p.target_image_count} prompts)`;
+          select.appendChild(opt);
+        });
+
+        if (list.length > 0 && !activeProjectId) {
+          onSelectProject(list[0].id);
+        }
+      } catch {}
+    }
+
+    async function onSelectProject(projId) {
+      if (!projId) return;
+      activeProjectId = projId;
+      document.getElementById('projectSelect').value = projId;
+
+      try {
+        const res = await fetch(`/api/v1/projects/${projId}`);
+        const proj = await res.json();
+
+        document.getElementById('activeProjectSubtitle').textContent = `${proj.name} • ${proj.directory_path}`;
+        document.getElementById('footerActiveProject').textContent = `Active: ${proj.name}`;
+        document.getElementById('statTotalPrompts').textContent = proj.stats?.total_prompts || 0;
+        document.getElementById('statTargetPrompts').textContent = `Target: ${proj.target_image_count}`;
+        document.getElementById('statCompletedPrompts').textContent = proj.stats?.completed_prompts || 0;
+        document.getElementById('statGeneratingPrompts').textContent = proj.stats?.generating_prompts || 0;
+        document.getElementById('statFailedPrompts').textContent = proj.stats?.failed_prompts || 0;
+
+        const pct = proj.stats?.total_prompts ? Math.round((proj.stats.completed_prompts / proj.stats.total_prompts) * 100) : 0;
+        document.getElementById('statPercent').textContent = `${pct}% finished`;
+
+        loadProjectPrompts();
+      } catch {}
+    }
+
+    // Modal controls
+    function openNewProjectModal() {
+      document.getElementById('newProjectModal').style.display = 'flex';
+    }
+    function closeNewProjectModal() {
+      document.getElementById('newProjectModal').style.display = 'none';
+    }
+    async function submitNewProject() {
+      const name = document.getElementById('modalProjName').value;
+      const mode = document.getElementById('modalProjMode').value;
+      const duration = document.getElementById('modalProjDuration').value;
+      const pacing = document.getElementById('modalProjPacing').value;
+
+      const res = await fetch('/api/v1/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, mode, voiceover_duration: duration, pacing_preset: pacing })
+      });
+      const created = await res.json();
+      closeNewProjectModal();
+      await loadProjects();
+      onSelectProject(created.id);
+    }
+
+    // Import Mode 2 Prompts
+    async function importPromptList() {
+      if (!activeProjectId) return alert('Select or create a project first');
+      const rawText = document.getElementById('rawPromptsInput').value;
+      if (!rawText.trim()) return alert('Paste prompt list first');
+
+      const res = await fetch(`/api/v1/projects/${activeProjectId}/prompts/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw_prompts: rawText })
+      });
+      const result = await res.json();
+      if (result.success) {
+        document.getElementById('promptValidationNotice').textContent = `Imported ${result.count} prompts (${result.first_id} to ${result.last_id})`;
+        document.getElementById('promptValidationNotice').style.color = 'var(--accent-emerald)';
+        loadProjectPrompts();
+        onSelectProject(activeProjectId);
+      } else {
+        alert('Validation failed:\n' + result.errors.join('\n'));
+      }
+    }
+
+    async function loadProjectPrompts() {
+      if (!activeProjectId) return;
+      try {
+        const res = await fetch(`/api/v1/projects/${activeProjectId}/prompts`);
+        const prompts = await res.json();
+        const container = document.getElementById('promptListContainer');
+        document.getElementById('importedPromptCountBadge').textContent = `${prompts.length} prompts loaded`;
+
+        if (prompts.length === 0) {
+          container.innerHTML = '<div style="color: var(--text-dim); padding: 10px;">No prompts loaded.</div>';
+          return;
+        }
+
+        container.innerHTML = prompts.map(p => `
+          <div style="background: var(--bg-card); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span style="font-weight: 700; color: ${p.status === 'COMPLETED' ? 'var(--accent-emerald)' : 'var(--accent-cyan)'};">${p.prompt_id_str}</span>
+              <span style="color: var(--text-main);">${p.prompt_text}</span>
+            </div>
+            <span class="status-badge ${p.status === 'COMPLETED' ? 'badge-generating' : 'badge-idle'}">${p.status}</span>
+          </div>
+        `).join('');
+      } catch {}
+    }
+
+    // Refresh Workers Farm
+    function updateFarmConfigTotal() {
+      const f = parseInt(document.getElementById('farmFlowCount').value) || 0;
+      const m = parseInt(document.getElementById('farmMetaCount').value) || 0;
+      const total = f + m;
+      const totalEl = document.getElementById('farmConfiguredTotal');
+      totalEl.textContent = total + ' / 10';
+      if (total > 10) {
+        totalEl.style.color = '#f43f5e';
+      } else {
+        totalEl.style.color = '#06b6d4';
+      }
+    }
+
+    async function launchConfiguredFarm() {
+      const f = parseInt(document.getElementById('farmFlowCount').value) || 0;
+      const m = parseInt(document.getElementById('farmMetaCount').value) || 0;
+      const total = f + m;
+      if (total > 10) {
+        alert('Maximum 10 active workers allowed. Requested: ' + total + '. Configuration rejected.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/v1/workers/processes/launch-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ flow_count: f, meta_count: m })
+        });
+        const data = await res.json();
+        if (data.error) {
+          alert('Error launching farm: ' + data.error);
+        } else {
+          showToast('Farm launch initiated for ' + total + ' workers');
+          setTimeout(refreshWorkers, 1500);
+        }
+      } catch (err) {
+        alert('Failed to launch farm: ' + err.message);
+      }
+    }
+
+    async function stopAllWorkers() {
+      if (!confirm('Stop all running browser worker processes?')) return;
+      try {
+        await fetch('/api/v1/workers/processes/stop-all', { method: 'POST' });
+        showToast('All worker processes stopped');
+        setTimeout(refreshWorkers, 1000);
+      } catch (err) {
+        alert('Error stopping workers: ' + err.message);
+      }
+    }
+
+    async function stopWorkerProcess(workerId) {
+      try {
+        await fetch('/api/v1/workers/processes/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ worker_id: workerId })
+        });
+        showToast('Stopped worker ' + workerId);
+        setTimeout(refreshWorkers, 1000);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function restartWorkerProcess(workerId) {
+      try {
+        await fetch('/api/v1/workers/processes/restart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ worker_id: workerId })
+        });
+        showToast('Restarting worker ' + workerId);
+        setTimeout(refreshWorkers, 2000);
+      } catch (err) {
+        alert('Error restarting: ' + err.message);
+      }
+    }
+
+    async function refreshWorkers() {
+      try {
+        // Fetch DB workers & process telemetry
+        const [wRes, pRes] = await Promise.all([
+          fetch('/api/v1/workers'),
+          fetch('/api/v1/workers/processes')
+        ]);
+        const workers = await wRes.json();
+        const procData = await pRes.json();
+
+        // Update Telemetry Bar
+        if (procData.telemetry) {
+          const t = procData.telemetry;
+          document.getElementById('teleTotalRam').textContent = t.total_ram_gb + ' GB';
+          document.getElementById('teleUsedRam').textContent = t.used_ram_gb + ' GB';
+          document.getElementById('teleFreeRam').textContent = t.free_ram_gb + ' GB';
+          document.getElementById('farmActiveBadge').textContent = (procData.active_count || 0) + ' / 10 Active Workers';
+
+          const warnEl = document.getElementById('farmRamWarning');
+          if (t.warning) {
+            warnEl.style.display = 'block';
+            warnEl.textContent = 'âš ï¸ ' + t.warning;
+          } else {
+            warnEl.style.display = 'none';
+          }
+        }
+
+        const grid = document.getElementById('workerFarmGrid');
+        if (workers.length === 0) {
+          grid.innerHTML = '<div style="color: var(--text-dim); padding: 10px; grid-column: span 3;">No workers registered. Click "Launch Farm" above to launch configured browser workers.</div>';
+          return;
+        }
+
+        grid.innerHTML = workers.map(w => {
+          const isFlow = w.provider === 'flow';
+          const proc = procData.processes?.find(p => p.workerId === w.id);
+          const pidText = proc ? ('PID: ' + proc.pid) : 'Not Running';
+
+          return `
+            <div class="worker-card ${isFlow ? 'flow-worker' : 'meta-worker'}">
+              <div class="worker-header">
+                <div class="worker-id">
+                  <div class="metric-dot" style="background: ${w.status === 'GENERATING' ? 'var(--accent-emerald)' : w.status === 'LOGIN_REQUIRED' ? 'var(--accent-amber)' : w.status === 'OFFLINE' ? 'var(--accent-rose)' : 'var(--accent-cyan)'};"></div>
+                  ${w.id}
+                  <span style="font-size: 11px; color: #64748b; font-weight: normal;">(${pidText})</span>
+                </div>
+                <div class="worker-provider ${isFlow ? 'prov-flow' : 'prov-meta'}">${w.provider.toUpperCase()}</div>
+              </div>
+              <div class="worker-status">
+                <span class="status-badge ${w.status === 'GENERATING' ? 'badge-generating' : w.status === 'LOGIN_REQUIRED' ? 'badge-login' : 'badge-idle'}">${w.status}</span>
+                <span style="font-size: 11px; color: var(--text-dim);">Ref: ${w.reference_status}</span>
+              </div>
+              <div class="worker-details" style="font-size: 11px; line-height: 1.6; margin-bottom: 8px;">
+                <div>Profile: ${w.profile_name}</div>
+                <div>Range: ${w.range_start ? ('00' + w.range_start).slice(-3) + ' - ' + ('00' + w.range_end).slice(-3) : 'Unassigned'}</div>
+                <div>Active Job: ${w.active_job_id || 'None (Idle)'}</div>
+                <div>Heartbeat: ${w.last_heartbeat ? new Date(w.last_heartbeat).toLocaleTimeString() : 'Never'}</div>
+              </div>
+              <div style="display: flex; gap: 6px; margin-top: 6px;">
+                <button class="btn btn-secondary" onclick="restartWorkerProcess('${w.id}')" style="font-size: 10px; padding: 2px 6px;">Restart</button>
+                <button class="btn btn-secondary" onclick="stopWorkerProcess('${w.id}')" style="font-size: 10px; padding: 2px 6px; color: #f43f5e;">Stop</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('refreshWorkers error:', err);
+      }
+    }
+
+    // Logs fetch
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/api/v1/logs?limit=50');
+        const logs = await res.json();
+        const container = document.getElementById('logsContainer');
+        container.innerHTML = logs.map(l => `
+          <div style="padding: 4px 6px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 10px;">
+            <span style="color: var(--text-dim);">${new Date(l.timestamp).toLocaleTimeString()}</span>
+            <span style="color: ${l.level === 'error' ? 'var(--accent-rose)' : l.level === 'warn' ? 'var(--accent-amber)' : 'var(--accent-cyan)'}; font-weight: 600;">[${l.level.toUpperCase()}]</span>
+            <span style="color: var(--text-muted);">[${l.source}]</span>
+            <span style="color: var(--text-main);">${l.message}</span>
+          </div>
+        `).join('');
+      } catch {}
+    }
+
+    // Initialize
+    loadProjects();
+
+    // Load default Master Prompt V7 from server
+    async function loadDefaultMasterPrompt() {
+      try {
+        const res = await fetch('/api/v1/ai/master-prompt-default');
+        const data = await res.json();
+        if (data.master_prompt) {
+          document.getElementById('m1MasterPrompt').value = data.master_prompt;
+          showToast('Master Prompt V7 loaded');
+        }
+      } catch (err) {
+        console.error('Failed to load default master prompt:', err);
+      }
+    }
+
+    // Settings Management
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/v1/settings');
+        const data = await res.json();
+        if (data.groq_primary_model) {
+          document.getElementById('settingGroqModel').value = data.groq_primary_model;
+        }
+        if (data.groq_fallback_model) {
+          document.getElementById('settingGroqFallback').value = data.groq_fallback_model;
+        }
+        if (data.groq_api_key_configured) {
+          document.getElementById('settingGroqKey').placeholder = 'Configured: ' + data.groq_api_key;
+          document.getElementById('settingGroqKey').value = '';
+        }
+      } catch (err) {
+        console.error('Failed to load settings:', err);
+      }
+    }
+
+    async function saveSettings() {
+      const model = document.getElementById('settingGroqModel').value;
+      const fallback = document.getElementById('settingGroqFallback').value;
+      const keyInput = document.getElementById('settingGroqKey').value.trim();
+      const payload = {
+        groq_primary_model: model,
+        groq_fallback_model: fallback
+      };
+      if (keyInput && !keyInput.includes('••••')) {
+        payload.groq_api_key = keyInput;
+      }
+      try {
+        const res = await fetch('/api/v1/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Settings saved successfully!');
+          loadSettings();
+        } else {
+          alert('Failed to save settings: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error saving settings: ' + err.message);
+      }
+    }
+
+    // Toast Notification Utility
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'linear-gradient(135deg, #065f46, #059669)',
+        error: 'linear-gradient(135deg, #881337, #e11d48)',
+        info: 'linear-gradient(135deg, #1e1b4b, #4338ca)'
+      };
+      const icons = { success: '✅', error: '❌', info: '⚡' };
+      toast.style.cssText = `
+        background: ${colors[type] || colors.info};
+        color: #ffffff;
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: inherit;
+        font-weight: 500;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        border: 1px solid rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        opacity: 0;
+        transform: translateY(12px);
+        transition: all 0.25s ease;
+        pointer-events: auto;
+      `;
+      toast.innerHTML = `<span>${icons[type] || '⚡'}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+      });
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(12px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Assign Ranges Modal Handlers
+    async function openAssignRangesModal() {
+      if (!activeProjectId) {
+        showToast('Please select a project first', 'error');
+        return;
+      }
+      const modal = document.getElementById('assignRangesModal');
+      const listEl = document.getElementById('rangesWorkerList');
+      modal.style.display = 'flex';
+      listEl.innerHTML = '<div style="color: #94a3b8; font-size: 13px;">Loading active workers...</div>';
+
+      try {
+        const [wRes, pRes] = await Promise.all([
+          fetch('/api/v1/workers'),
+          fetch('/api/v1/projects/' + activeProjectId + '/prompts')
+        ]);
+        const workers = await wRes.json();
+        const prompts = await pRes.json();
+
+        if (workers.length === 0) {
+          listEl.innerHTML = '<div style="color: #f43f5e; font-size: 13px;">No workers registered. Launch browser workers first.</div>';
+          return;
+        }
+
+        const totalPrompts = prompts.length;
+        const perWorker = Math.ceil(totalPrompts / workers.length);
+
+        listEl.innerHTML = workers.map((w, idx) => {
+          const defaultStart = (idx * perWorker) + 1;
+          const defaultEnd = Math.min((idx + 1) * perWorker, totalPrompts);
+          return `
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 10px; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <strong style="color: #06b6d4;">${w.id}</strong>
+                <span style="font-size: 11px; color: #64748b; margin-left: 6px;">(${w.provider.toUpperCase()})</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="number" id="range_start_${w.id}" value="${w.range_start || defaultStart}" style="width: 70px; background: #0a0d14; border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 4px 8px; border-radius: 4px;" />
+                <span style="color: #94a3b8;">to</span>
+                <input type="number" id="range_end_${w.id}" value="${w.range_end || defaultEnd}" style="width: 70px; background: #0a0d14; border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 4px 8px; border-radius: 4px;" />
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        listEl.innerHTML = '<div style="color: #f43f5e;">Error loading workers: ' + err.message + '</div>';
+      }
+    }
+
+    function closeAssignRangesModal() {
+      document.getElementById('assignRangesModal').style.display = 'none';
+    }
+
+    async function submitAssignRanges() {
+      if (!activeProjectId) return;
+      try {
+        const wRes = await fetch('/api/v1/workers');
+        const workers = await wRes.json();
+        const assignments = workers.map(w => {
+          const s = parseInt(document.getElementById('range_start_' + w.id)?.value) || 0;
+          const e = parseInt(document.getElementById('range_end_' + w.id)?.value) || 0;
+          return { worker_id: w.id, range_start: s, range_end: e };
+        });
+
+        const res = await fetch('/api/v1/projects/' + activeProjectId + '/assign-workers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignments })
+        });
+        const result = await res.json();
+        if (result.success) {
+          showToast('Worker ranges updated successfully!', 'success');
+          closeAssignRangesModal();
+          refreshWorkers();
+        } else {
+          showToast('Failed: ' + (result.error || 'Server error'), 'error');
+        }
+      } catch (err) {
+        showToast('Error assigning ranges: ' + err.message, 'error');
+      }
+    }
+
+    // Post-Production Render Handler
+    async function startRender() {
+      if (!activeProjectId) {
+        showToast('Please select an active project first', 'error');
+        return;
+      }
+      const statusBox = document.getElementById('renderStatusBox');
+      if (statusBox) {
+        statusBox.innerHTML = `
+          <div style="color: #06b6d4; font-weight: 600;">⚡ Initializing video render pipeline...</div>
+          <div>Encoding 1080p @ 30 FPS H.264 MP4 with master audio.</div>
+          <div style="margin-top: 8px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+            <div id="renderProgressBar" style="width: 20%; height: 100%; background: linear-gradient(90deg, #06b6d4, #8b5cf6); transition: width 0.4s ease;"></div>
+          </div>
+        `;
+      }
+      try {
+        const res = await fetch('/api/v1/projects/' + activeProjectId + '/render', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fps: 30, resolution: '1920x1080', motion_enabled: true })
+        });
+        const data = await res.json();
+        if (data.render_id) {
+          showToast('Render job initiated: ' + data.render_id, 'info');
+          pollRenderStatus(data.render_id);
+        } else {
+          showToast('Render error: ' + (data.error || 'Unknown error'), 'error');
+          if (statusBox) statusBox.innerHTML = '<div style="color: #f43f5e;">❌ ' + (data.error || 'Render failed') + '</div>';
+        }
+      } catch (err) {
+        showToast('Render connection failed: ' + err.message, 'error');
+        if (statusBox) statusBox.innerHTML = '<div style="color: #f43f5e;">❌ ' + err.message + '</div>';
+      }
+    }
+
+    async function pollRenderStatus(renderId) {
+      const statusBox = document.getElementById('renderStatusBox');
+      const bar = document.getElementById('renderProgressBar');
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch('/api/v1/projects/' + activeProjectId + '/renders');
+          const renders = await res.json();
+          const cur = renders.find(r => r.id === renderId);
+          if (cur) {
+            if (bar) bar.style.width = Math.min(25 + attempts * 10, 95) + '%';
+            if (cur.status === 'COMPLETED') {
+              clearInterval(interval);
+              if (bar) bar.style.width = '100%';
+              showToast('Video render completed successfully!', 'success');
+              if (statusBox) {
+                statusBox.innerHTML = `
+                  <div style="color: #10b981; font-weight: 700;">✅ Video Render Complete!</div>
+                  <div style="margin-top: 6px; color: #94a3b8;">Output File: <code style="color: #fff; background: #000; padding: 2px 6px; border-radius: 4px;">${cur.output_path || 'output.mp4'}</code></div>
+                  <div style="margin-top: 10px;">
+                    <a href="/projects-media/${cur.output_path}" target="_blank" class="btn btn-primary" style="display: inline-block; text-decoration: none; padding: 6px 14px; font-size: 13px;">▶ Play / Download MP4</a>
+                  </div>
+                `;
+              }
+            } else if (cur.status === 'FAILED') {
+              clearInterval(interval);
+              showToast('Render failed: ' + (cur.error_message || 'FFmpeg error'), 'error');
+              if (statusBox) {
+                statusBox.innerHTML = '<div style="color: #f43f5e; font-weight: 700;">❌ Render Failed: ' + (cur.error_message || 'FFmpeg encoding error') + '</div>';
+              }
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        if (attempts > 60) clearInterval(interval);
+      }, 2000);
+    }
+
+</script>
+
+  <!-- Toast Notification System -->
+  <div id="toastContainer" style="position: fixed; bottom: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 8px; pointer-events: none;"></div>
+
+  <!-- Assign Fixed Ranges Modal -->
+  <div id="assignRangesModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 10000; align-items: center; justify-content: center;">
+    <div class="panel-card" style="width: 520px; max-width: 90vw; background: #111726; border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="card-title" style="font-size: 18px; color: #fff; margin: 0;">⚡ Assign Worker Prompt Ranges</div>
+        <button onclick="closeAssignRangesModal()" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">&times;</button>
+      </div>
+      <div style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">
+        Automatically partition the active project's prompts across available online workers for balanced parallel generation.
+      </div>
+      <div id="rangesWorkerList" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; margin-bottom: 20px;">
+        <!-- Dynamic worker inputs -->
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-secondary" onclick="closeAssignRangesModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitAssignRanges()" style="background: linear-gradient(135deg, #06b6d4, #8b5cf6);">Apply Partition</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

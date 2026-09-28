@@ -1,0 +1,53 @@
+# Stickman Studio .gitignore
+# Dependencies
+node_modules/
+package-lock.json
+
+# Local Environment & Secrets
+.env
+.env.*
+*.key
+*.token
+groq_phase0_benchmark_results.json
+
+# Large Archives & Optional Models Assets
+Models/
+Modals/
+
+# SQLite Database & Storage
+data/
+*.sqlite
+*.sqlite-journal
+*.db
+
+# Chrome Worker Profiles & Sessions (Never commit user sessions/cookies)
+Workers/*/
+!Workers/Worker-W01/
+!Workers/Worker-W02/
+Workers/Worker-W01/*
+!Workers/Worker-W01/extension/
+Workers/Worker-W02/*
+!Workers/Worker-W02/extension/
+
+# Generated Video & Image Artifacts
+Projects/*/central_images/
+Projects/*/downloads_raw/
+Projects/*/renders/
+evidence/
+
+# Logs & Temporary Files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Large Archives & Binaries
+*.rar
+*.zip
+studio/bin/ffmpeg.exe
+studio/bin/ffprobe.exe
+studio/bin/*.exe
+

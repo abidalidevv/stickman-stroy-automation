@@ -1,0 +1,1114 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STICKMAN STUDIO — Video Production Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-canvas: #090d16;
+      --bg-panel: #111726;
+      --bg-card: #172033;
+      --bg-card-hover: #1e293b;
+      --border-subtle: #243048;
+      --border-strong: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-flow: #3b82f6;
+      --accent-meta: #8b5cf6;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-cyan: #06b6d4;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-canvas);
+      color: var(--text-main);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TOP HEADER */
+    header {
+      height: 54px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      user-select: none;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #000;
+      font-weight: 800;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+    .brand-title {
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-sub {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 400;
+      border-left: 1px solid var(--border-subtle);
+      padding-left: 8px;
+    }
+
+    /* RESOURCE MONITOR HEADER WIDGET */
+    .resource-monitor {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+    }
+    .metric {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .metric-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 6px var(--accent-emerald);
+    }
+    .metric-val {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .metric-label {
+      color: var(--text-dim);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .mode-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* MAIN WORKSPACE LAYOUT */
+    .workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* SIDEBAR */
+    aside {
+      width: 220px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 8px;
+      user-select: none;
+    }
+    .nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .nav-heading {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 8px 8px 4px;
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-weight: 500;
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+      width: 100%;
+    }
+    .nav-btn:hover {
+      background: var(--bg-card);
+      color: var(--text-main);
+    }
+    .nav-btn.active {
+      background: var(--bg-card);
+      border-color: var(--border-subtle);
+      color: #fff;
+      font-weight: 600;
+    }
+    .nav-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 2;
+    }
+
+    /* MAIN VIEW CONTAINER */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background: var(--bg-canvas);
+    }
+
+    .view-panel {
+      display: none;
+      flex-direction: column;
+      padding: 24px 32px;
+      gap: 20px;
+      max-width: 1300px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .view-panel.active {
+      display: flex;
+    }
+
+    /* SECTION TITLES & CARDS */
+    .view-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 16px;
+    }
+    .view-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .view-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .panel-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* WORKER FARM GRID */
+    .worker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .worker-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .worker-card.flow-worker { border-left: 4px solid var(--accent-flow); }
+    .worker-card.meta-worker { border-left: 4px solid var(--accent-meta); }
+    .worker-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .worker-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .worker-provider {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .prov-flow { background: rgba(59, 130, 246, 0.2); color: var(--accent-flow); }
+    .prov-meta { background: rgba(139, 92, 246, 0.2); color: var(--accent-meta); }
+
+    .worker-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-idle { background: rgba(148, 163, 184, 0.15); color: var(--text-muted); }
+    .badge-generating { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
+    .badge-offline { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); }
+    .badge-login { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
+
+    .worker-details {
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* BUTTONS & CONTROLS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .btn-primary {
+      background: var(--accent-emerald);
+      color: #000;
+    }
+    .btn-primary:hover {
+      background: #059669;
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-strong);
+    }
+    .btn-accent {
+      background: linear-gradient(135deg, var(--accent-flow), var(--accent-meta));
+      color: #fff;
+    }
+
+    /* INPUTS & TEXTAREAS */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .input-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .input-box {
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .input-box:focus {
+      border-color: var(--accent-emerald);
+    }
+    textarea.input-box {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
+    /* TIMELINE TRACKS */
+    .timeline-container {
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .track {
+      height: 38px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+    .track-label {
+      width: 100px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      padding-left: 10px;
+      border-right: 1px solid var(--border-subtle);
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+    .track-content {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 2px 6px;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .track-clip {
+      height: 28px;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    /* HARDWARE WARNING BANNER */
+    .warning-banner {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--accent-amber);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* FOOTER STATUS BAR */
+    footer {
+      height: 28px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      user-select: none;
+    }
+    .footer-left { display: flex; align-items: center; gap: 14px; }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-badge">PRO</div>
+      <div class="brand-title">STICKMAN STUDIO</div>
+      <div class="brand-sub">Video Production Engine</div>
+    </div>
+
+    <!-- LIVE RESOURCE MONITOR -->
+    <div class="resource-monitor" id="resourceMonitor">
+      <div class="metric">
+        <div class="metric-dot" id="systemStatusDot"></div>
+        <span class="metric-label">STATUS</span>
+        <span class="metric-val" id="serverStatusText">ONLINE</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">CPU</span>
+        <span class="metric-val" id="cpuMetric">0%</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">RAM</span>
+        <span class="metric-val" id="ramMetric">-- / -- GB</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">GPU</span>
+        <span class="metric-val" id="gpuMetric">Scanning...</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">WORKERS</span>
+        <span class="metric-val" id="activeWorkersMetric">0 Active</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="mode-pill" id="currentModeBadge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        MODE 2: EXISTING PROMPTS
+      </div>
+      <button class="btn btn-secondary" onclick="openNewProjectModal()">+ New Project</button>
+    </div>
+  </header>
+
+  <!-- WORKSPACE -->
+  <div class="workspace">
+    <!-- NAVIGATION SIDEBAR -->
+    <aside>
+      <div class="nav-group">
+        <div class="nav-heading">Production</div>
+        <button class="nav-btn active" onclick="switchTab('dashboard')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Dashboard
+        </button>
+        <button class="nav-btn" onclick="switchTab('prompts')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Mode 2 Prompts
+        </button>
+        <button class="nav-btn" onclick="switchTab('workers')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          Worker Farm
+        </button>
+        <button class="nav-btn" onclick="switchTab('timeline')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Master Timeline
+        </button>
+        <button class="nav-btn" onclick="switchTab('postprod')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+          Render & Export
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-heading">System</div>
+        <button class="nav-btn" onclick="switchTab('logs')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          Telemetry Logs
+        </button>
+        <button class="nav-btn" onclick="switchTab('settings')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          Settings
+        </button>
+      </div>
+    </aside>
+
+    <!-- CONTENT VIEWS -->
+    <main>
+      <!-- WARNING BANNER IF HARDWARE LOW -->
+      <div id="hardwareWarningBanner" class="warning-banner" style="display: none; margin: 16px 32px 0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        <span id="hardwareWarningText">System memory warning</span>
+      </div>
+
+      <!-- VIEW 1: DASHBOARD -->
+      <div id="view-dashboard" class="view-panel active">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Project Overview</div>
+            <div class="view-desc" id="activeProjectSubtitle">No active project selected</div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <select id="projectSelect" class="input-box" onchange="onSelectProject(this.value)">
+              <option value="">Select Project...</option>
+            </select>
+            <button class="btn btn-primary" onclick="openNewProjectModal()">Create Project</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
+          <div class="panel-card">
+            <div class="card-title">Prompts Total</div>
+            <div style="font-size: 28px; font-weight: 800;" id="statTotalPrompts">0</div>
+            <div style="font-size: 11px; color: var(--text-dim);" id="statTargetPrompts">Target: --</div>
+          </div>
+          <div class="panel-card">
+            <div class="card-title">Completed</div>
+            <div style="font-size: 28px; font-weight: 800; color: var(--accent-emerald);" id="statCompletedPrompts">0</div>
+            <div style="font-size: 11px; color: var(--text-dim);" id="statPercent">0% finished</div>
+          </div>
+          <div class="panel-card">
+            <div class="card-title">In Progress</div>
+            <div style="font-size: 28px; font-weight: 800; color: var(--accent-flow);" id="statGeneratingPrompts">0</div>
+            <div style="font-size: 11px; color: var(--text-dim);">Across active workers</div>
+          </div>
+          <div class="panel-card">
+            <div class="card-title">Repair Queue</div>
+            <div style="font-size: 28px; font-weight: 800; color: var(--accent-rose);" id="statFailedPrompts">0</div>
+            <div style="font-size: 11px; color: var(--text-dim);">Missing / failed IDs</div>
+          </div>
+        </div>
+
+        <!-- QUICK ACTIONS CARD -->
+        <div class="panel-card">
+          <div class="card-title">Active Project Workflow</div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="switchTab('prompts')">1. Import / Inspect Prompts</button>
+            <button class="btn btn-secondary" onclick="switchTab('workers')">2. Configure Workers & Ranges</button>
+            <button class="btn btn-secondary" onclick="switchTab('timeline')">3. Audio & Pacing Timeline</button>
+            <button class="btn btn-primary" onclick="switchTab('postprod')">4. Post-Production Render</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: MODE 2 PROMPTS -->
+      <div id="view-prompts" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Mode 2: Clean Prompt List Manager</div>
+            <div class="view-desc">Import, validate sequential numbering (001_...), detect gaps/duplicates, and assign ranges.</div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" onclick="importPromptList()">Validate & Import</button>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-title">Paste Sequential Prompt List</div>
+          <textarea id="rawPromptsInput" class="input-box" rows="12" placeholder="001_2D minimalist hand-drawn stickman sketch, Alex waking up in bed...&#10;002_2D stickman Alex walking toward wooden table...&#10;003_2D stickman Alex pouring black ink into mug..."></textarea>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim);">
+            <span>Strict format: 001_prompt text... (one image per line, no metadata blocks)</span>
+            <span id="promptValidationNotice"></span>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-title">
+            <span>Imported Project Prompts</span>
+            <span style="font-size: 11px; color: var(--text-dim);" id="importedPromptCountBadge">0 prompts loaded</span>
+          </div>
+          <div id="promptListContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 400px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+            <div style="color: var(--text-dim); padding: 10px;">No prompts loaded. Paste clean prompts above and click Validate & Import.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 3: WORKER FARM -->
+      <div id="view-workers" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Browser Worker Farm</div>
+            <div class="view-desc">Monitor persistent profile instances, leases, character reference status, and login state.</div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" onclick="openAssignRangesModal()">Assign Fixed Ranges</button>
+            <button class="btn btn-primary" onclick="refreshWorkers()">Refresh Farm</button>
+          </div>
+        </div>
+
+        <div class="worker-grid" id="workerFarmGrid">
+          <!-- Dynamic Worker Cards rendered via JS -->
+        </div>
+      </div>
+
+      <!-- VIEW 4: TIMELINE -->
+      <div id="view-timeline" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Master Voiceover Timeline</div>
+            <div class="view-desc">Multi-track audio-synchronized timeline using configurable pacing presets.</div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <label class="input-label" style="margin: 0;">Pacing:</label>
+            <select id="pacingSelect" class="input-box" style="padding: 4px 8px; font-size: 12px;">
+              <option value="1/4s">1 img / 4s (0.25x)</option>
+              <option value="2/4s" selected>2 img / 4s (0.50x) [Default]</option>
+              <option value="3/4s">3 img / 4s (0.75x)</option>
+              <option value="4/4s">4 img / 4s (1.00x)</option>
+              <option value="5/4s">5 img / 4s (1.25x)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="timeline-container">
+          <div class="track">
+            <div class="track-label">VIDEO</div>
+            <div class="track-content" id="timelineTrackVideo">
+              <div class="track-clip">001_stickman (2.0s)</div>
+              <div class="track-clip">002_stickman (2.0s)</div>
+              <div class="track-clip">003_stickman (2.0s)</div>
+              <div class="track-clip">004_stickman (2.0s)</div>
+            </div>
+          </div>
+          <div class="track">
+            <div class="track-label">VOICEOVER</div>
+            <div class="track-content" id="timelineTrackVO">
+              <div class="track-clip" style="background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.4); width: 100%;">Master Voiceover (01:12)</div>
+            </div>
+          </div>
+          <div class="track">
+            <div class="track-label">CAPTIONS</div>
+            <div class="track-content" id="timelineTrackCaptions">
+              <div class="track-clip" style="background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4);">Groq Whisper Word Timing</div>
+            </div>
+          </div>
+          <div class="track">
+            <div class="track-label">SFX</div>
+            <div class="track-content" id="timelineTrackSFX">
+              <div class="track-clip" style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4);">Whoosh (0.8s)</div>
+            </div>
+          </div>
+          <div class="track">
+            <div class="track-label">MUSIC 7%</div>
+            <div class="track-content" id="timelineTrackMusic">
+              <div class="track-clip" style="background: rgba(6, 182, 212, 0.2); border-color: rgba(6, 182, 212, 0.4); width: 100%;">Background Track (Ducking: ON, Vol: 7%)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 5: POST PRODUCTION & RENDER -->
+      <div id="view-postprod" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Render & Export Engine</div>
+            <div class="view-desc">Bundled FFmpeg: 1920x1080 @ 30 FPS, H.264, AAC 320 kbps MP4.</div>
+          </div>
+          <div>
+            <button class="btn btn-primary" onclick="startRender()">Export 1080p MP4</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px;">
+          <div class="panel-card">
+            <div class="card-title">Production Render Configuration</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="input-group">
+                <label class="input-label">Output Resolution</label>
+                <input class="input-box" value="1920x1080 (16:9)" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Frame Rate</label>
+                <input class="input-box" value="30 FPS" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Video Codec</label>
+                <input class="input-box" value="libx264 (CRF 18 High Quality)" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Audio Codec</label>
+                <input class="input-box" value="AAC 320 kbps Stereo" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Background Music Volume</label>
+                <input class="input-box" value="7% (Locked Studio Default)" readonly>
+              </div>
+              <div class="input-group">
+                <label class="input-label">Voiceover Ducking</label>
+                <input class="input-box" value="Enabled (Sidechain Compression)" readonly>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="card-title">Export Status</div>
+            <div id="renderStatusBox" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); display: flex; flex-direction: column; gap: 8px;">
+              <div>Ready for export.</div>
+              <div>FFmpeg binary: studio/bin/ffmpeg.exe</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 6: LOGS -->
+      <div id="view-logs" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">System & Telemetry Logs</div>
+            <div class="view-desc">Live audit logs for worker polling, job leases, and file validation.</div>
+          </div>
+          <button class="btn btn-secondary" onclick="fetchLogs()">Refresh Logs</button>
+        </div>
+
+        <div class="panel-card" style="padding: 10px;">
+          <div id="logsContainer" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; max-height: 500px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 6px;">
+            <div>Loading logs...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 7: SETTINGS -->
+      <div id="view-settings" class="view-panel">
+        <div class="view-header">
+          <div>
+            <div class="view-title">Studio Settings</div>
+            <div class="view-desc">Configure AI providers, worker profiles, and local directories.</div>
+          </div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-title">Primary AI Provider (Groq)</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="input-group">
+              <label class="input-label">Primary Groq Model</label>
+              <input id="settingGroqModel" class="input-box" value="openai/gpt-oss-120b">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Fallback Model</label>
+              <input id="settingGroqFallback" class="input-box" value="openai/gpt-oss-20b">
+            </div>
+            <div class="input-group" style="grid-column: span 2;">
+              <label class="input-label">Groq API Key (Secure Local Storage)</label>
+              <input id="settingGroqKey" type="password" class="input-box" placeholder="gsk_...">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="card-title">Offline Emergency Fallback (Ollama)</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="input-group">
+              <label class="input-label">Ollama Host</label>
+              <input class="input-box" value="http://127.0.0.1:11434">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Ollama Model</label>
+              <input class="input-box" value="llama3.2:latest">
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- FOOTER STATUS BAR -->
+  <footer>
+    <div class="footer-left">
+      <span>Stickman Studio v1.0.0</span>
+      <span>•</span>
+      <span id="footerActiveProject">Active Project: None</span>
+      <span>•</span>
+      <span id="footerDbStatus">SQLite: WAL Mode</span>
+    </div>
+    <div class="footer-right">
+      <span>API: 127.0.0.1:45450</span>
+    </div>
+  </footer>
+
+  <!-- MODAL: NEW PROJECT -->
+  <div id="newProjectModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 8px; width: 480px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-weight: 700; font-size: 16px;">Create Stickman Project</div>
+      <div class="input-group">
+        <label class="input-label">Project Name</label>
+        <input id="modalProjName" class="input-box" placeholder="e.g. The Cipher of Shadows">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Operating Mode</label>
+        <select id="modalProjMode" class="input-box">
+          <option value="MODE_2" selected>Mode 2: Existing Prompt List (MVP)</option>
+          <option value="MODE_1">Mode 1: Generate Everything (AI Story Engine)</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Voiceover Duration (Seconds)</label>
+        <input id="modalProjDuration" type="number" class="input-box" value="72">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Pacing Preset</label>
+        <select id="modalProjPacing" class="input-box">
+          <option value="2/4s" selected>2 images / 4 sec (0.50x) [Default]</option>
+          <option value="1/4s">1 image / 4 sec (0.25x)</option>
+          <option value="3/4s">3 images / 4 sec (0.75x)</option>
+          <option value="4/4s">4 images / 4 sec (1.00x)</option>
+        </select>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+        <button class="btn btn-secondary" onclick="closeNewProjectModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitNewProject()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeProjectId = '';
+
+    // Switch view panel tabs
+    function switchTab(tabId) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+      const targetView = document.getElementById(`view-${tabId}`);
+      if (targetView) targetView.classList.add('active');
+
+      const activeNav = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
+      if (activeNav) activeNav.classList.add('active');
+
+      if (tabId === 'workers') refreshWorkers();
+      if (tabId === 'logs') fetchLogs();
+      if (tabId === 'prompts') loadProjectPrompts();
+    }
+
+    // Poll System Resources every 2.5s
+    async function pollResources() {
+      try {
+        const res = await fetch('/api/v1/system/resources');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById('cpuMetric').textContent = `${data.cpu_percent}%`;
+        document.getElementById('ramMetric').textContent = `${data.ram_used_gb} / ${data.ram_total_gb} GB (${data.ram_percent}%)`;
+        document.getElementById('gpuMetric').textContent = data.gpu_name ? `${data.gpu_name.split(' ')[0]} (${data.gpu_vram_gb} GB)` : 'Active';
+        document.getElementById('activeWorkersMetric').textContent = `${data.active_workers} Active (${data.flow_workers_active}F, ${data.meta_workers_active}M)`;
+
+        // Hardware warning
+        const warnBanner = document.getElementById('hardwareWarningBanner');
+        if (data.hardware_warning) {
+          warnBanner.style.display = 'flex';
+          document.getElementById('hardwareWarningText').textContent = data.hardware_warning.message;
+        } else {
+          warnBanner.style.display = 'none';
+        }
+      } catch (err) {}
+    }
+    setInterval(pollResources, 2500);
+    pollResources();
+
+    // Fetch Projects list
+    async function loadProjects() {
+      try {
+        const res = await fetch('/api/v1/projects');
+        const list = await res.json();
+        const select = document.getElementById('projectSelect');
+        select.innerHTML = '<option value="">Select Project...</option>';
+        list.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `${p.name} (${p.target_image_count} prompts)`;
+          select.appendChild(opt);
+        });
+
+        if (list.length > 0 && !activeProjectId) {
+          onSelectProject(list[0].id);
+        }
+      } catch {}
+    }
+
+    async function onSelectProject(projId) {
+      if (!projId) return;
+      activeProjectId = projId;
+      document.getElementById('projectSelect').value = projId;
+
+      try {
+        const res = await fetch(`/api/v1/projects/${projId}`);
+        const proj = await res.json();
+
+        document.getElementById('activeProjectSubtitle').textContent = `${proj.name} • ${proj.directory_path}`;
+        document.getElementById('footerActiveProject').textContent = `Active: ${proj.name}`;
+        document.getElementById('statTotalPrompts').textContent = proj.stats?.total_prompts || 0;
+        document.getElementById('statTargetPrompts').textContent = `Target: ${proj.target_image_count}`;
+        document.getElementById('statCompletedPrompts').textContent = proj.stats?.completed_prompts || 0;
+        document.getElementById('statGeneratingPrompts').textContent = proj.stats?.generating_prompts || 0;
+        document.getElementById('statFailedPrompts').textContent = proj.stats?.failed_prompts || 0;
+
+        const pct = proj.stats?.total_prompts ? Math.round((proj.stats.completed_prompts / proj.stats.total_prompts) * 100) : 0;
+        document.getElementById('statPercent').textContent = `${pct}% finished`;
+
+        loadProjectPrompts();
+      } catch {}
+    }
+
+    // Modal controls
+    function openNewProjectModal() {
+      document.getElementById('newProjectModal').style.display = 'flex';
+    }
+    function closeNewProjectModal() {
+      document.getElementById('newProjectModal').style.display = 'none';
+    }
+    async function submitNewProject() {
+      const name = document.getElementById('modalProjName').value;
+      const mode = document.getElementById('modalProjMode').value;
+      const duration = document.getElementById('modalProjDuration').value;
+      const pacing = document.getElementById('modalProjPacing').value;
+
+      const res = await fetch('/api/v1/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, mode, voiceover_duration: duration, pacing_preset: pacing })
+      });
+      const created = await res.json();
+      closeNewProjectModal();
+      await loadProjects();
+      onSelectProject(created.id);
+    }
+
+    // Import Mode 2 Prompts
+    async function importPromptList() {
+      if (!activeProjectId) return alert('Select or create a project first');
+      const rawText = document.getElementById('rawPromptsInput').value;
+      if (!rawText.trim()) return alert('Paste prompt list first');
+
+      const res = await fetch(`/api/v1/projects/${activeProjectId}/prompts/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw_prompts: rawText })
+      });
+      const result = await res.json();
+      if (result.success) {
+        document.getElementById('promptValidationNotice').textContent = `Imported ${result.count} prompts (${result.first_id} to ${result.last_id})`;
+        document.getElementById('promptValidationNotice').style.color = 'var(--accent-emerald)';
+        loadProjectPrompts();
+        onSelectProject(activeProjectId);
+      } else {
+        alert('Validation failed:\n' + result.errors.join('\n'));
+      }
+    }
+
+    async function loadProjectPrompts() {
+      if (!activeProjectId) return;
+      try {
+        const res = await fetch(`/api/v1/projects/${activeProjectId}/prompts`);
+        const prompts = await res.json();
+        const container = document.getElementById('promptListContainer');
+        document.getElementById('importedPromptCountBadge').textContent = `${prompts.length} prompts loaded`;
+
+        if (prompts.length === 0) {
+          container.innerHTML = '<div style="color: var(--text-dim); padding: 10px;">No prompts loaded.</div>';
+          return;
+        }
+
+        container.innerHTML = prompts.map(p => `
+          <div style="background: var(--bg-card); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span style="font-weight: 700; color: ${p.status === 'COMPLETED' ? 'var(--accent-emerald)' : 'var(--accent-cyan)'};">${p.prompt_id_str}</span>
+              <span style="color: var(--text-main);">${p.prompt_text}</span>
+            </div>
+            <span class="status-badge ${p.status === 'COMPLETED' ? 'badge-generating' : 'badge-idle'}">${p.status}</span>
+          </div>
+        `).join('');
+      } catch {}
+    }
+
+    // Refresh Workers Farm
+    async function refreshWorkers() {
+      try {
+        const res = await fetch('/api/v1/workers');
+        const workers = await res.json();
+        const grid = document.getElementById('workerFarmGrid');
+
+        if (workers.length === 0) {
+          grid.innerHTML = '<div style="color: var(--text-dim); padding: 10px; grid-column: span 3;">No workers registered. Launch browser profiles or wait for extension connection.</div>';
+          return;
+        }
+
+        grid.innerHTML = workers.map(w => {
+          const isFlow = w.provider === 'flow';
+          return `
+            <div class="worker-card ${isFlow ? 'flow-worker' : 'meta-worker'}">
+              <div class="worker-header">
+                <div class="worker-id">
+                  <div class="metric-dot" style="background: ${w.status === 'GENERATING' ? 'var(--accent-emerald)' : w.status === 'OFFLINE' ? 'var(--accent-rose)' : 'var(--text-muted)'};"></div>
+                  ${w.id}
+                </div>
+                <div class="worker-provider ${isFlow ? 'prov-flow' : 'prov-meta'}">${w.provider}</div>
+              </div>
+              <div class="worker-status">
+                <span class="status-badge ${w.status === 'GENERATING' ? 'badge-generating' : w.status === 'LOGIN_REQUIRED' ? 'badge-login' : 'badge-idle'}">${w.status}</span>
+                <span style="font-size: 11px; color: var(--text-dim);">Ref: ${w.reference_status}</span>
+              </div>
+              <div class="worker-details">
+                <div>Profile: ${w.profile_name}</div>
+                <div>Active Job: ${w.active_job_id || 'None (Idle)'}</div>
+                <div>Heartbeat: ${w.last_heartbeat ? new Date(w.last_heartbeat).toLocaleTimeString() : 'Never'}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch {}
+    }
+
+    // Logs fetch
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/api/v1/logs?limit=50');
+        const logs = await res.json();
+        const container = document.getElementById('logsContainer');
+        container.innerHTML = logs.map(l => `
+          <div style="padding: 4px 6px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 10px;">
+            <span style="color: var(--text-dim);">${new Date(l.timestamp).toLocaleTimeString()}</span>
+            <span style="color: ${l.level === 'error' ? 'var(--accent-rose)' : l.level === 'warn' ? 'var(--accent-amber)' : 'var(--accent-cyan)'}; font-weight: 600;">[${l.level.toUpperCase()}]</span>
+            <span style="color: var(--text-muted);">[${l.source}]</span>
+            <span style="color: var(--text-main);">${l.message}</span>
+          </div>
+        `).join('');
+      } catch {}
+    }
+
+    // Initialize
+    loadProjects();
+  </script>
+</body>
+</html>
+

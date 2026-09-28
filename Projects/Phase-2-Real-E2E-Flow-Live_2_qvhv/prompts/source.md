@@ -1,0 +1,1 @@
+001_2D stickman sketch, Alex standing in minimalist white room, clean white background

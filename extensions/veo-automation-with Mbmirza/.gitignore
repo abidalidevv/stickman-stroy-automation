@@ -1,0 +1,24 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Virtual Environment
+.venv/
+env/
+venv/
+
+# IDE & Editor Files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Log Files
+*.log
+npm-debug.log*
+
+# Local backup and scratch files
+*.bak
+*.tmp
+*.crx

@@ -1,0 +1,21 @@
+﻿{
+  "name": "stickman-studio",
+  "version": "1.0.0",
+  "description": "Stickman Studio — Windows Desktop Video Production Engine",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "keywords": ["stickman", "video-automation", "flow", "meta-ai"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "fluent-ffmpeg": "^2.1.3",
+    "groq-sdk": "^1.6.0",
+    "multer": "^2.4.0",
+    "sqlite3": "^6.0.1"
+  }
+}
