@@ -1,6 +1,7 @@
 /**
  * 🎬 STICKMAN STUDIO V2 — FRONTEND CONTROLLER
- * Ultra-fast, reactive, modern glassmorphic dashboard controller.
+ * Ultra-fast, reactive, modern glassmorphic dashboard controller
+ * with Interactive Video Canvas Player & Visual Scene Director.
  */
 
 let activeProjectId = '';
@@ -10,11 +11,18 @@ let telemetryTimer = null;
 let workersTimer = null;
 let renderPollInterval = null;
 
+// Timeline & Video Canvas Player State
+let timelineItems = [];
+let isPlaying = false;
+let currentSceneIndex = -1;
+let isVerticalAspect = false;
+
 // =============================================
 // INITIALIZATION & LIFECYCLE
 // =============================================
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
+  setupKeyboardShortcuts();
 });
 
 async function initApp() {
@@ -23,6 +31,18 @@ async function initApp() {
   startHardwarePolling();
   loadAiModels();
   loadDefaultMasterPrompt();
+}
+
+function setupKeyboardShortcuts() {
+  window.addEventListener('keydown', (e) => {
+    // Spacebar to Play/Pause when on Step 4 (Timeline) and not typing in an input
+    if (e.code === 'Space' && currentStep === 4) {
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) return;
+      e.preventDefault();
+      togglePlayback();
+    }
+  });
 }
 
 // =============================================
@@ -39,6 +59,11 @@ function setupNavigation() {
 }
 
 function goToStep(stepNum) {
+  // If leaving timeline while playing, pause audio
+  if (currentStep === 4 && isPlaying) {
+    pausePlayback();
+  }
+
   currentStep = stepNum;
   
   // Update stepper tabs UI
@@ -201,7 +226,7 @@ async function submitNewProject() {
 }
 
 // =============================================
-// STEP 1: AI STORY ENGINE & PROMPT MANAGEMENT
+// STEP 1: AI STORY ENGINE & PROMPTS
 // =============================================
 async function loadAiModels() {
   try {
@@ -218,9 +243,7 @@ async function loadAiModels() {
       if (m === data.primary_model) opt.selected = true;
       select.appendChild(opt);
     });
-  } catch (e) {
-    console.error('Failed to load AI models', e);
-  }
+  } catch (e) {}
 }
 
 async function loadDefaultMasterPrompt() {
@@ -310,11 +333,10 @@ async function triggerMode1Generate() {
     progressStatus.textContent = `Generated ${result.generated_count} prompts successfully!`;
     showToast(`Generated ${result.generated_count} stickman prompts!`, 'success');
 
-    // Display story bible if available
     if (result.story_bible) {
       document.getElementById('m1BibleBox').style.display = 'block';
       document.getElementById('m1BibleProtagonist').textContent = result.story_bible.protagonist || 'Stickman Hero';
-      document.getElementById('m1BibleSetting').textContent = result.story_bible.setting || 'Obsidian void / minimalistic background';
+      document.getElementById('m1BibleSetting').textContent = result.story_bible.setting || 'Obsidian void / minimalist background';
     }
 
     await loadProjectPrompts();
@@ -330,7 +352,6 @@ async function triggerMode1Generate() {
   }
 }
 
-// Mode 2 Prompts Import
 async function importRawPrompts() {
   if (!activeProjectId) {
     showToast('Select an active project first', 'warn');
@@ -607,7 +628,6 @@ async function submitRanges() {
 async function loadProjectGallery() {
   if (!activeProjectId) return;
   try {
-    // Ingest check first
     await fetch(`/api/v1/projects/${activeProjectId}/ingest`, { method: 'POST' });
 
     const res = await fetch(`/api/v1/projects/${activeProjectId}/prompts`);
@@ -662,38 +682,29 @@ function closeLightbox() {
 }
 
 // =============================================
-// STEP 4: AUDIO & MASTER TIMELINE
+// STEP 4: 🎬 INTERACTIVE VIDEO CANVAS & SCENE DIRECTOR
 // =============================================
 async function loadTimeline() {
   if (!activeProjectId) return;
   try {
     const res = await fetch(`/api/v1/projects/${activeProjectId}/timeline`);
-    const items = await res.json();
-    const container = document.getElementById('timelineContainer');
-    if (!container) return;
+    timelineItems = await res.json();
 
-    if (!items || items.length === 0) {
-      container.innerHTML = `
-        <div style="text-align: center; padding: 40px; color: var(--text-dim);">
-          <div>No timeline items generated yet.</div>
-          <button class="btn btn-primary" onclick="buildTimeline()" style="margin-top: 12px;">⚡ Build Master Audio Timeline</button>
-        </div>
-      `;
-      return;
+    const audioEl = document.getElementById('timelineAudioElement');
+    if (currentProjectData?.voiceover_path) {
+      // Point audio player to local voiceover file if available
+      audioEl.src = `/projects-media/${currentProjectData.name}/voiceover.wav`;
+      audioEl.load();
     }
 
-    container.innerHTML = items.map(t => `
-      <div style="background: rgba(14, 20, 36, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 14px;">
-          <div style="font-family: var(--font-mono); font-weight: 700; color: var(--cyan);">${t.prompt_id_str || '001'}</div>
-          <div>
-            <div style="font-size: 13px; color: #fff;">${t.label || t.prompt_text || 'Scene Segment'}</div>
-            <div style="font-size: 11px; color: var(--text-dim);">${t.start_time?.toFixed(2)}s &rarr; ${t.end_time?.toFixed(2)}s (Duration: ${t.duration?.toFixed(2)}s)</div>
-          </div>
-        </div>
-        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--emerald);">${t.motion_preset || 'SLOW_ZOOM'}</div>
-      </div>
-    `).join('');
+    renderSceneDirectorCards();
+    initPlayerListeners();
+
+    if (timelineItems.length > 0) {
+      updatePlaybackScene(0);
+      const totalDur = timelineItems[timelineItems.length - 1].end_time || 0;
+      document.getElementById('playbackTotalTime').textContent = formatTime(totalDur);
+    }
   } catch (err) {
     console.error('Error loading timeline:', err);
   }
@@ -702,18 +713,230 @@ async function loadTimeline() {
 async function buildTimeline() {
   if (!activeProjectId) return;
   try {
-    showToast('Building synchronized timeline...', 'info');
+    showToast('Auto-synchronizing images with voiceover audio...', 'info');
     const res = await fetch(`/api/v1/projects/${activeProjectId}/timeline/build`, { method: 'POST' });
     const data = await res.json();
     if (data.success) {
       showToast('Master Timeline generated!', 'success');
-      loadTimeline();
+      await loadTimeline();
     } else {
       showToast(`Timeline error: ${data.error}`, 'error');
     }
   } catch (err) {
     showToast(`Error: ${err.message}`, 'error');
   }
+}
+
+function initPlayerListeners() {
+  const audio = document.getElementById('timelineAudioElement');
+  if (!audio) return;
+
+  audio.ontimeupdate = () => {
+    const curTime = audio.currentTime;
+    document.getElementById('playbackCurrentTime').textContent = formatTime(curTime);
+
+    const totalDur = timelineItems.length > 0 ? (timelineItems[timelineItems.length - 1].end_time || 1) : (audio.duration || 1);
+    const pct = Math.min((curTime / totalDur) * 100, 100);
+    document.getElementById('timelineScrubberFill').style.width = `${pct}%`;
+
+    // Find active scene
+    const activeIdx = timelineItems.findIndex(item => curTime >= (item.start_time || 0) && curTime < (item.end_time || 99999));
+    if (activeIdx !== -1 && activeIdx !== currentSceneIndex) {
+      updatePlaybackScene(activeIdx);
+    }
+  };
+
+  audio.onended = () => {
+    pausePlayback();
+    seekToStart();
+  };
+}
+
+function updatePlaybackScene(idx) {
+  if (idx < 0 || idx >= timelineItems.length) return;
+  currentSceneIndex = idx;
+  const scene = timelineItems[idx];
+
+  const imgEl = document.getElementById('playerCanvasImage');
+  const badgeEl = document.getElementById('playerSceneBadge');
+  const captionEl = document.getElementById('playerCaptionOverlay');
+
+  if (scene.image_path) {
+    imgEl.src = `/projects-media/${currentProjectData.name}/${scene.image_path}`;
+  } else {
+    imgEl.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><rect width="100" height="60" fill="%230a0d16"/><text y="32" x="50" text-anchor="middle" fill="%2300f0ff" font-size="6">Stickman Scene Ready</text></svg>';
+  }
+
+  // Trigger smooth Ken Burns animation reset
+  const motionClass = (scene.motion_preset || 'SLOW_ZOOM').toLowerCase().replace('_', '-');
+  imgEl.className = 'canvas-image-stage motion-zoom-in';
+  void imgEl.offsetWidth; // trigger reflow
+  imgEl.className = `canvas-image-stage motion-${motionClass}`;
+
+  badgeEl.textContent = `SCENE ${scene.prompt_id_str || (idx + 1)}`;
+  captionEl.textContent = scene.prompt_text || scene.label || `Stickman scene ${idx + 1}`;
+
+  // Highlight active scene card in Director Grid
+  document.querySelectorAll('.scene-director-card').forEach((c, i) => {
+    if (i === idx) c.classList.add('active-playing');
+    else c.classList.remove('active-playing');
+  });
+}
+
+function togglePlayback() {
+  if (isPlaying) {
+    pausePlayback();
+  } else {
+    startPlayback();
+  }
+}
+
+function startPlayback() {
+  const audio = document.getElementById('timelineAudioElement');
+  isPlaying = true;
+  document.getElementById('btnPlayPause').innerHTML = '<span>⏸</span> Pause';
+  if (audio && audio.src) {
+    audio.play().catch(() => {});
+  }
+}
+
+function pausePlayback() {
+  const audio = document.getElementById('timelineAudioElement');
+  isPlaying = false;
+  document.getElementById('btnPlayPause').innerHTML = '<span>▶</span> Play Preview';
+  if (audio) audio.pause();
+}
+
+function seekToStart() {
+  const audio = document.getElementById('timelineAudioElement');
+  if (audio) audio.currentTime = 0;
+  document.getElementById('timelineScrubberFill').style.width = '0%';
+  document.getElementById('playbackCurrentTime').textContent = '00:00.0';
+  if (timelineItems.length > 0) updatePlaybackScene(0);
+}
+
+function onScrubTimeline(event) {
+  const track = document.getElementById('timelineScrubberTrack');
+  const rect = track.getBoundingClientRect();
+  const clickX = event.clientX - rect.left;
+  const pct = Math.max(0, Math.min(clickX / rect.width, 1));
+
+  const totalDur = timelineItems.length > 0 ? (timelineItems[timelineItems.length - 1].end_time || 30) : 30;
+  const targetTime = pct * totalDur;
+
+  const audio = document.getElementById('timelineAudioElement');
+  if (audio) audio.currentTime = targetTime;
+
+  document.getElementById('timelineScrubberFill').style.width = `${pct * 100}%`;
+  document.getElementById('playbackCurrentTime').textContent = formatTime(targetTime);
+
+  const idx = timelineItems.findIndex(item => targetTime >= (item.start_time || 0) && targetTime < (item.end_time || 99999));
+  if (idx !== -1) updatePlaybackScene(idx);
+}
+
+function toggleAspect() {
+  const viewport = document.getElementById('playerCanvasViewport');
+  const btn = document.getElementById('btnToggleAspect');
+  isVerticalAspect = !isVerticalAspect;
+
+  if (isVerticalAspect) {
+    viewport.classList.add('vertical');
+    btn.textContent = '9:16 (Shorts)';
+  } else {
+    viewport.classList.remove('vertical');
+    btn.textContent = '16:9 (YouTube)';
+  }
+}
+
+function renderSceneDirectorCards() {
+  const grid = document.getElementById('sceneDirectorGrid');
+  const badge = document.getElementById('sceneCountBadge');
+  if (!grid) return;
+
+  badge.textContent = `${timelineItems.length} Scenes`;
+
+  if (timelineItems.length === 0) {
+    grid.innerHTML = '<div style="color: var(--text-dim); grid-column: span 3; padding: 24px; text-align: center;">No scenes in timeline. Click "Auto-Sync Audio" above to build the sequence.</div>';
+    return;
+  }
+
+  grid.innerHTML = timelineItems.map((scene, idx) => {
+    const thumbUrl = scene.image_path ? `/projects-media/${currentProjectData.name}/${scene.image_path}` : '';
+    const dur = (scene.duration || (scene.end_time - scene.start_time) || 3.0).toFixed(1);
+
+    return `
+      <div class="scene-director-card" id="sceneCard_${idx}">
+        <div class="scene-card-top">
+          <img src="${thumbUrl}" class="scene-card-thumb" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 80 50\\'><rect width=\\'80\\' height=\\'50\\' fill=\\'%23080b14\\'/><text y=\\'28\\' x=\\'40\\' text-anchor=\\'middle\\' fill=\\'%23555\\' font-size=\\'10\\'>${scene.prompt_id_str || idx + 1}</text></svg>'" />
+          <div class="scene-card-info">
+            <span class="scene-card-id">${scene.prompt_id_str || ('00' + (idx + 1)).slice(-3)}</span>
+            <span class="scene-card-text" title="${scene.prompt_text || ''}">${scene.prompt_text || scene.label || 'Stickman scene'}</span>
+            <span style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${scene.start_time?.toFixed(1)}s &rarr; ${scene.end_time?.toFixed(1)}s</span>
+          </div>
+        </div>
+
+        <div class="scene-card-controls">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <label style="font-size: 10px; color: var(--text-dim);">Duration:</label>
+            <input type="number" step="0.1" value="${dur}" onchange="updateSceneDuration(${idx}, this.value)" class="form-input" style="width: 55px; padding: 2px 6px; font-size: 11px; height: 26px;" />
+            <span style="font-size: 10px; color: var(--text-dim);">s</span>
+          </div>
+
+          <div style="display: flex; gap: 4px;">
+            <button class="btn btn-secondary" onclick="moveScene(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} style="padding: 2px 6px; font-size: 10px;" title="Move earlier">▲</button>
+            <button class="btn btn-secondary" onclick="moveScene(${idx}, 1)" ${idx === timelineItems.length - 1 ? 'disabled' : ''} style="padding: 2px 6px; font-size: 10px;" title="Move later">▼</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateSceneDuration(idx, newDurationStr) {
+  const newDur = parseFloat(newDurationStr);
+  if (isNaN(newDur) || newDur <= 0.2) {
+    showToast('Invalid duration', 'warn');
+    return;
+  }
+
+  timelineItems[idx].duration = newDur;
+  recalculateTimelineTimings();
+  renderSceneDirectorCards();
+  showToast(`Updated Scene ${idx + 1} duration to ${newDur}s`, 'success');
+}
+
+function moveScene(idx, direction) {
+  const targetIdx = idx + direction;
+  if (targetIdx < 0 || targetIdx >= timelineItems.length) return;
+
+  const temp = timelineItems[idx];
+  timelineItems[idx] = timelineItems[targetIdx];
+  timelineItems[targetIdx] = temp;
+
+  recalculateTimelineTimings();
+  renderSceneDirectorCards();
+  showToast(`Reordered scene ${idx + 1}`, 'info');
+}
+
+function recalculateTimelineTimings() {
+  let cursor = 0;
+  for (let i = 0; i < timelineItems.length; i++) {
+    const dur = timelineItems[i].duration || (timelineItems[i].end_time - timelineItems[i].start_time) || 3.0;
+    timelineItems[i].start_time = cursor;
+    timelineItems[i].end_time = cursor + dur;
+    timelineItems[i].duration = dur;
+    cursor += dur;
+  }
+  const totalDur = cursor;
+  document.getElementById('playbackTotalTime').textContent = formatTime(totalDur);
+}
+
+function formatTime(seconds) {
+  if (isNaN(seconds) || seconds < 0) return '00:00.0';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 10);
+  return `${('0' + m).slice(-2)}:${('0' + s).slice(-2)}.${ms}`;
 }
 
 // =============================================
@@ -808,7 +1031,7 @@ async function loadRenderHistory() {
     if (!container) return;
 
     if (renders.length === 0) {
-      container.innerHTML = '<div style="color: var(--text-dim); padding: 12px;">No rendered videos yet.</div>';
+      container.innerHTML = '<div style="color: var(--text-dim); padding: 12px;">No videos rendered for this project yet.</div>';
       return;
     }
 

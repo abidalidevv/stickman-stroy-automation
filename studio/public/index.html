@@ -377,28 +377,79 @@
         </div>
       </section>
 
-      <!-- ==================== STEP 4: AUDIO & MASTER TIMELINE ==================== -->
+      <!-- ==================== STEP 4: 🎬 INTERACTIVE VIDEO CANVAS & SCENE DIRECTOR ==================== -->
       <section id="step-4-panel" class="view-panel">
+        
+        <!-- Live Video Canvas Viewport -->
+        <div class="preview-player-wrapper">
+          <div class="player-canvas-viewport" id="playerCanvasViewport">
+            <!-- Active Image Layer with Ken Burns Motion -->
+            <img id="playerCanvasImage" class="canvas-image-stage motion-zoom-in" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60'><rect width='100' height='60' fill='%230a0d16'/><text y='32' x='50' text-anchor='middle' fill='%2300f0ff' font-size='6'>Stickman Studio Player Ready</text></svg>" alt="Stickman Scene Preview" />
+            
+            <!-- Scene Badge -->
+            <div id="playerSceneBadge" class="canvas-scene-badge">SCENE 001</div>
+
+            <!-- Subtitle / Prompt Overlay -->
+            <div id="playerCaptionOverlay" class="canvas-caption-overlay">Stickman scene preview ready. Hit Play below to watch.</div>
+          </div>
+
+          <!-- Playback Controls Bar -->
+          <div class="player-control-bar">
+            <!-- Interactive Scrubber -->
+            <div class="timeline-scrubber-track" id="timelineScrubberTrack" onclick="onScrubTimeline(event)">
+              <div id="timelineScrubberFill" class="timeline-scrubber-fill"></div>
+            </div>
+
+            <div class="player-buttons-row">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="btnPlayPause" class="btn btn-primary" onclick="togglePlayback()">
+                  <span>▶</span> Play Preview
+                </button>
+                <button class="btn btn-secondary" onclick="seekToStart()" title="Rewind to 0:00">
+                  <span>⏮</span> 0:00
+                </button>
+                <button class="btn btn-secondary" onclick="toggleAspect()" id="btnToggleAspect" title="Toggle 16:9 Landscape / 9:16 Shorts">
+                  16:9
+                </button>
+              </div>
+
+              <div class="playback-time-badge">
+                <strong id="playbackCurrentTime">00:00.0</strong> / <span id="playbackTotalTime">00:00.0</span>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <button class="btn btn-secondary" onclick="buildTimeline()">
+                  ⚡ Auto-Sync Audio
+                </button>
+                <button class="btn btn-emerald" onclick="goToStep(5)">
+                  🎬 Export 1080p MP4 &rarr;
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audio Element -->
+          <audio id="timelineAudioElement" preload="auto"></audio>
+        </div>
+
+        <!-- Scene Director & Picture Arrangement -->
         <div class="card">
           <div class="card-header">
             <div class="card-title-group">
-              <div class="card-icon">🎙️</div>
+              <div class="card-icon">🎞️</div>
               <div>
-                <div class="card-title">Audio & Master Timeline Engine</div>
-                <div class="card-subtitle">Synchronize voiceover speech duration with generated stickman scenes</div>
+                <div class="card-title">Scene Director & Picture Arrangement</div>
+                <div class="card-subtitle">Adjust scene durations, reorder pictures, and preview smooth transitions</div>
               </div>
             </div>
-
-            <div style="display: flex; gap: 10px;">
-              <button class="btn btn-primary" onclick="buildTimeline()">⚡ Build Timeline</button>
-            </div>
+            <span id="sceneCountBadge" class="brand-badge">0 Scenes</span>
           </div>
 
-          <!-- Timeline Items Container -->
-          <div id="timelineContainer" style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
-            <!-- Rendered via JS -->
+          <div id="sceneDirectorGrid" class="scene-director-grid">
+            <!-- Dynamic scene director cards injected via JS -->
           </div>
         </div>
+
       </section>
 
       <!-- ==================== STEP 5: STUDIO RENDER ==================== -->
