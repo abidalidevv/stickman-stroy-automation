@@ -60,7 +60,7 @@ class RenderEngine {
    * Post-Render Validation
    * Ensures output is 1920x1080, 30 FPS, H.264, AAC, and non-empty
    */
-  async validateRenderedVideo(videoPath, expectedMinDuration = 1.0) {
+  async validateRenderedVideo(videoPath, expectedMinDuration = 1.0, expectedWidth = 1920, expectedHeight = 1080) {
     if (!fs.existsSync(videoPath)) {
       return { valid: false, error: 'Rendered video file does not exist' };
     }
@@ -84,12 +84,12 @@ class RenderEngine {
       const codec = vStream.codec_name;
       const duration = parseFloat(probe.format.duration || vStream.duration || 0);
 
-      const is1080p = (width === 1920 && height === 1080);
+      const isExpectedRes = (width === expectedWidth && height === expectedHeight);
       const isH264 = codec === 'h264';
       const hasAudio = !!aStream;
 
-      if (!is1080p) {
-        return { valid: false, error: `Invalid resolution: ${width}x${height} (Expected 1920x1080)` };
+      if (!isExpectedRes) {
+        return { valid: false, error: `Invalid resolution: ${width}x${height} (Expected ${expectedWidth}x${expectedHeight})` };
       }
 
       if (!isH264) {
@@ -123,8 +123,13 @@ class RenderEngine {
     includeMusic = true,
     includeSfx = true,
     musicVolume = 0.07, // STRICT REQUIREMENT: DEFAULT MUSIC VOLUME = 7%
-    transitionType = 'cut'
+    transitionType = 'cut',
+    aspectRatio = '16:9'
   } = {}) {
+    const isPortrait = (aspectRatio === '9:16');
+    const targetW = isPortrait ? 1080 : 1920;
+    const targetH = isPortrait ? 1920 : 1080;
+    const resolutionStr = `${targetW}x${targetH}`;
     const project = await db.get('SELECT * FROM projects WHERE id = ?', [projectId]);
     if (!project) throw new Error(`Project ${projectId} not found`);
 
@@ -191,7 +196,7 @@ class RenderEngine {
     }
 
     // Video filter: Scale and letterbox to exact 1920x1080
-    const videoFilter = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,fps=30';
+    const videoFilter = `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:color=black,fps=30`;
 
     // Audio filter: Mix voiceover with background music ducked to 7% (0.07)
     let audioFilter = '';
@@ -234,7 +239,7 @@ class RenderEngine {
         }
 
         // Post-render validation
-        const val = await this.validateRenderedVideo(outputPath, totalDuration);
+        const val = await this.validateRenderedVideo(outputPath, totalDuration, targetW, targetH);
         if (!val.valid) {
           logger.error('RENDER_ENGINE', `Post-render validation failed: ${val.error}`);
           return reject(new Error(`Post-render validation failed: ${val.error}`));
@@ -247,8 +252,8 @@ class RenderEngine {
           INSERT INTO renders (
             id, project_id, output_path, resolution, fps, render_duration_sec,
             file_size, status, created_at, updated_at
-          ) VALUES (?, ?, ?, '1920x1080', 30, ?, ?, 'COMPLETED', ?, ?)
-        `, [renderId, projectId, outputPath, val.duration, val.size, now, now]);
+          ) VALUES (?, ?, ?, ?, 30, ?, ?, 'COMPLETED', ?, ?)
+        `, [renderId, projectId, outputPath, resolutionStr, val.duration, val.size, now, now]);
 
         logger.info('RENDER_ENGINE', `Render complete & validated: ${outputPath} (${val.duration}s, ${val.size} bytes)`);
 
@@ -258,7 +263,7 @@ class RenderEngine {
           output_path: outputPath,
           duration: val.duration,
           file_size: val.size,
-          resolution: '1920x1080',
+          resolution: resolutionStr,
           fps: 30,
           codec: val.codec,
           audio_codec: val.audio_codec

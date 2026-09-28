@@ -51,3 +51,7 @@ studio/bin/ffmpeg.exe
 studio/bin/ffprobe.exe
 studio/bin/*.exe
 
+
+Demo/
+Projects/
+

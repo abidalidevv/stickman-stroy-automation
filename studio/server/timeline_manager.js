@@ -151,6 +151,23 @@ class TimelineManager {
   /**
    * Adjust duration of a specific timeline slide and recalculate downstream timings
    */
+  /**
+   * Batch sync timeline items (order and durations) from Scene Director
+   */
+  async syncTimelineItems(projectId, items = []) {
+    if (!items || items.length === 0) return this.getTimeline(projectId);
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const dur = Math.max(0.2, parseFloat(it.duration || it.duration_sec || 2.0));
+      const order = i + 1;
+      await db.run(
+        'UPDATE timeline_items SET order_index = ?, duration = ?, updated_at = datetime("now") WHERE id = ? AND project_id = ?',
+        [order, dur, it.id, projectId]
+      );
+    }
+    return this.recalculateTimestamps(projectId);
+  }
+
   async updateItemDuration(projectId, itemId, newDurationSec) {
     const dur = Math.max(0.5, parseFloat(newDurationSec));
 

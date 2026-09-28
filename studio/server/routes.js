@@ -162,6 +162,16 @@ router.post('/projects/:id/timeline/build', async (req, res) => {
   }
 });
 
+router.put('/projects/:id/timeline/sync', async (req, res) => {
+  try {
+    const { items } = req.body;
+    const result = await timelineManager.syncTimelineItems(req.params.id, items);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.get('/projects/:id/timeline', async (req, res) => {
   try {
     const result = await timelineManager.getTimeline(req.params.id);
@@ -205,13 +215,14 @@ router.get('/projects/:id/captions', async (req, res) => {
 
 router.post('/projects/:id/render', async (req, res) => {
   try {
-    const { output_file_name, include_music, include_sfx, music_volume, transition_type } = req.body;
+    const { output_file_name, include_music, include_sfx, music_volume, transition_type, aspect_ratio } = req.body;
     const result = await renderEngine.renderProjectVideo(req.params.id, {
       outputFileName: output_file_name,
       includeMusic: include_music,
       includeSfx: include_sfx,
       musicVolume: music_volume !== undefined ? music_volume : 0.07, // 7% default
-      transitionType: transition_type
+      transitionType: transition_type,
+      aspectRatio: aspect_ratio || '16:9'
     });
     res.json(result);
   } catch (err) {

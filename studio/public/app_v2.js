@@ -964,6 +964,30 @@ function moveScene(idx, direction) {
   showToast(`Reordered scene ${idx + 1}`, 'info');
 }
 
+
+let timelineSyncTimeout = null;
+async function syncTimelineToBackend() {
+  if (!activeProjectId || !timelineItems || timelineItems.length === 0) return;
+  clearTimeout(timelineSyncTimeout);
+  timelineSyncTimeout = setTimeout(async () => {
+    try {
+      const payload = timelineItems.map((item, idx) => ({
+        id: item.id,
+        order_index: idx + 1,
+        duration: item.duration
+      }));
+      await fetch(`/api/v1/projects/${activeProjectId}/timeline/sync`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: payload })
+      });
+      console.log('Master timeline synced to SQLite database');
+    } catch (e) {
+      console.warn('Failed to sync timeline to backend:', e);
+    }
+  }, 300);
+}
+
 function recalculateTimelineTimings() {
   let cursor = 0;
   for (let i = 0; i < timelineItems.length; i++) {
@@ -1007,17 +1031,40 @@ async function triggerRender() {
   document.getElementById('renderBar').style.width = '20%';
 
   try {
+    const isPortrait = (resolution === '1080x1920');
+    const aspectRatio = isPortrait ? '9:16' : '16:9';
+    document.getElementById('renderProgressText').textContent = 'Rendering 1080p Master Video via FFmpeg...';
+    
     const res = await fetch(`/api/v1/projects/${activeProjectId}/render`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fps, resolution, motion_enabled: motion })
+      body: JSON.stringify({
+        fps: parseInt(fps, 10) || 30,
+        resolution,
+        aspect_ratio: aspectRatio,
+        motion_enabled: motion,
+        include_music: true,
+        include_sfx: true,
+        music_volume: 0.07
+      })
     });
     const data = await res.json();
-    if (data.render_id) {
-      showToast('Render job queued!', 'info');
+    if (data.output_path || data.success) {
+      document.getElementById('renderBar').style.width = '100%';
+      document.getElementById('renderProgressText').textContent = '✓ Render Complete!';
+      btn.disabled = false;
+      showToast('1080p Video Render Complete!', 'success');
+      
+      const playerWrap = document.getElementById('renderPlayerWrap');
+      const video = document.getElementById('renderedVideoPlayer');
+      video.src = resolveMediaUrl(data.output_path);
+      playerWrap.style.display = 'block';
+      loadRenderHistory();
+    } else if (data.render_id) {
+      showToast('Render in progress...', 'info');
       pollRender(data.render_id);
     } else {
-      showToast(data.error || 'Render failed to start', 'error');
+      showToast(data.error || 'Render failed', 'error');
       btn.disabled = false;
     }
   } catch (err) {

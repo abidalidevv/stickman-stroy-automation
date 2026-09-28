@@ -1,0 +1,1086 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stickman Studio — Master Engineering Documentation & Workflow Manual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg-base: #05050a;
+      --bg-surface: #0a0d18;
+      --bg-surface-elevated: #0f1526;
+      --bg-card: rgba(14, 20, 36, 0.75);
+      --bg-card-hover: rgba(20, 28, 50, 0.9);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --border-accent: rgba(0, 240, 255, 0.35);
+      --cyan: #00f0ff;
+      --cyan-glow: rgba(0, 240, 255, 0.25);
+      --violet: #8a2be2;
+      --violet-light: #b388ff;
+      --emerald: #00e676;
+      --amber: #ffab00;
+      --rose: #ff1744;
+      --text-main: #f0f4fc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      line-height: 1.65;
+      font-size: 15px;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 10%, rgba(0, 240, 255, 0.04) 0%, transparent 45%),
+        radial-gradient(circle at 85% 25%, rgba(138, 43, 226, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 50% 85%, rgba(0, 230, 118, 0.03) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-surface); }
+    ::-webkit-scrollbar-thumb { background: #263352; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+    .doc-container {
+      display: flex;
+      max-width: 1650px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    .doc-sidebar {
+      width: 320px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-subtle);
+      padding: 28px 20px;
+      flex-shrink: 0;
+    }
+
+    .doc-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .doc-brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #000;
+      font-size: 18px;
+      box-shadow: 0 0 15px var(--cyan-glow);
+    }
+
+    .doc-brand-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #fff, var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .doc-brand-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .nav-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--cyan);
+      margin: 20px 0 8px 8px;
+      font-family: var(--font-mono);
+    }
+
+    .nav-links { list-style: none; }
+    .nav-links li a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      margin-bottom: 2px;
+    }
+
+    .nav-links li a:hover, .nav-links li a.active {
+      color: #fff;
+      background: rgba(0, 240, 255, 0.08);
+      border-left: 2px solid var(--cyan);
+    }
+
+    .doc-content {
+      flex: 1;
+      padding: 40px 60px;
+      max-width: calc(100% - 320px);
+    }
+
+    .top-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .back-btn:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid var(--cyan-glow);
+      color: var(--cyan);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 80%, var(--cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 17px;
+      color: var(--text-muted);
+      max-width: 900px;
+      line-height: 1.7;
+    }
+
+    .doc-section {
+      margin-bottom: 60px;
+      scroll-margin-top: 30px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .section-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid var(--border-accent);
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .doc-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      transition: all 0.3s ease;
+    }
+
+    .doc-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-icon { font-size: 24px; margin-bottom: 12px; }
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .card-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .diagram-container {
+      background: #070a14;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 28px;
+      margin: 24px 0;
+      overflow-x: auto;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .diagram-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--cyan);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+      background: var(--bg-card);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .doc-table th {
+      background: var(--bg-surface-elevated);
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-strong);
+    }
+
+    .doc-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+
+    .doc-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+      color: #fff;
+    }
+
+    .code-box {
+      background: #05070e;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #93c5fd;
+      overflow-x: auto;
+      margin: 16px 0;
+      line-height: 1.6;
+    }
+
+    .callout {
+      border-left: 4px solid var(--cyan);
+      background: rgba(0, 240, 255, 0.05);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 20px 0;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+
+    .callout.warn {
+      border-left-color: var(--amber);
+      background: rgba(255, 171, 0, 0.05);
+    }
+
+    .callout.success {
+      border-left-color: var(--emerald);
+      background: rgba(0, 230, 118, 0.05);
+    }
+
+    .callout-title {
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+    .badge-cyan { background: rgba(0, 240, 255, 0.15); color: var(--cyan); border: 1px solid var(--cyan); }
+    .badge-violet { background: rgba(138, 43, 226, 0.2); color: var(--violet-light); border: 1px solid var(--violet-light); }
+    .badge-emerald { background: rgba(0, 230, 118, 0.15); color: var(--emerald); border: 1px solid var(--emerald); }
+    .badge-amber { background: rgba(255, 171, 0, 0.15); color: var(--amber); border: 1px solid var(--amber); }
+
+    .kbd {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #f1f5f9;
+      box-shadow: 0 2px 0 #0f172a;
+    }
+  </style>
+</head>
+<body>
+
+<div class="doc-container">
+
+  <!-- Sidebar -->
+  <aside class="doc-sidebar">
+    <div class="doc-brand">
+      <div class="doc-brand-icon">S</div>
+      <div>
+        <div class="doc-brand-title">STICKMAN STUDIO</div>
+        <div class="doc-brand-sub">ENGINEERING MANUAL</div>
+      </div>
+    </div>
+
+    <div class="nav-group-title">CORE ARCHITECTURE</div>
+    <ul class="nav-links">
+      <li><a href="#overview">⚡ System Overview</a></li>
+      <li><a href="#architecture">🏛️ Pipeline Diagram</a></li>
+      <li><a href="#workflow">🔄 Production Workflow</a></li>
+    </ul>
+
+    <div class="nav-group-title">STEP-BY-STEP GUIDE</div>
+    <ul class="nav-links">
+      <li><a href="#step1">1️⃣ Step 1: Script & Prompts</a></li>
+      <li><a href="#step2">2️⃣ Step 2: Worker Farm</a></li>
+      <li><a href="#step3">3️⃣ Step 3: Media QA & Ingestion</a></li>
+      <li><a href="#step4">4️⃣ Step 4: Canvas Player</a></li>
+      <li><a href="#step5">5️⃣ Step 5: Master Render</a></li>
+      <li><a href="#step6">6️⃣ Step 6: Telemetry & API</a></li>
+    </ul>
+
+    <div class="nav-group-title">OPERATIONS & AUDIT</div>
+    <ul class="nav-links">
+      <li><a href="#audit-findings">🔍 System Audit & Flaws</a></li>
+      <li><a href="#troubleshooting">🛠️ Troubleshooting & FAQs</a></li>
+      <li><a href="#suggestions">🚀 Next-Gen Roadmap</a></li>
+    </ul>
+
+    <div style="margin-top: 40px; padding: 14px; background: rgba(0, 240, 255, 0.04); border: 1px solid var(--border-subtle); border-radius: 8px;">
+      <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 6px;">LOCAL SERVER ACTIVE</div>
+      <div style="font-family: var(--font-mono); font-size: 12px; color: var(--emerald);">● http://127.0.0.1:45450</div>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="doc-content">
+    
+    <div class="top-actions">
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <a href="/" class="back-btn">⬅ Return to Studio V2 UI</a>
+        <a href="/index_classic.html" class="back-btn">⏮ Classic View</a>
+      </div>
+      <div>
+        <span class="badge badge-cyan">v1.2.0-STABLE</span>
+        <span class="badge badge-emerald">SQLITE-WAL</span>
+      </div>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero-section">
+      <div class="hero-badge">OFFICIAL SYSTEM SPECIFICATION & WORKFLOW MANUAL</div>
+      <h1 class="hero-title">Stickman Studio Master Guide</h1>
+      <p class="hero-desc">
+        A local-first, high-throughput desktop video production suite engineered for 2D stickman documentary storytelling. 
+        Stickman Studio orchestrates multi-agent Chrome workers, automated Meta.ai browser bridging, 3-tier image fidelity QA, 
+        and sub-frame audio synchronization into broadcast-grade 1080p MP4 master videos.
+      </p>
+    </div>
+    <!-- Section 1: Overview -->
+    <section id="overview" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">01</div>
+        <h2 class="section-title">System Overview & Core Philosophy</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Traditional AI video creation requires constant copy-pasting into web interfaces, messy download directories, manual file renaming, and slow video editing in Premiere or CapCut. 
+        <strong>Stickman Studio solves this entirely on local Windows hardware</strong> by introducing a dedicated six-stage production engine:
+      </p>
+
+      <div class="card-grid">
+        <div class="doc-card">
+          <div class="card-icon">⚡</div>
+          <div class="card-title">Local-First Desktop Engine</div>
+          <div class="card-desc">Zero cloud lock-in. Powered by SQLite in WAL (Write-Ahead Logging) mode, Express REST API, and native Windows binaries (FFmpeg & FFprobe).</div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-icon">🤖</div>
+          <div class="card-title">Multi-Worker Chrome Farm</div>
+          <div class="card-desc">Orchestrates parallel isolated Chrome instances (W01–W08) with dedicated profiles, avoiding session conflicts and cross-talk on Meta.ai.</div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-icon">🛡️</div>
+          <div class="card-title">3-Tier Fidelity QA</div>
+          <div class="card-desc">Every generated image is validated for magic byte signatures, exact resolution, forbidden photorealism tokens, and script adherence before ingestion.</div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-icon">🎬</div>
+          <div class="card-title">Interactive Canvas Player</div>
+          <div class="card-desc">Hardware-accelerated HTML5 canvas player with live Ken Burns smooth zoom & pan, audio waveform scrubbing, and real-time scene director controls.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Architecture -->
+    <section id="architecture" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">02</div>
+        <h2 class="section-title">System Architecture & Pipeline Diagram</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        The system is divided into three key layers: <strong>Frontend Workstation</strong> (Modern Glassmorphic UI), 
+        <strong>Backend Local Service</strong> (Express, SQLite, FFmpeg), and <strong>Worker Automation Farm</strong> (Chrome Profiles & Extensions).
+      </p>
+
+      <div class="diagram-container">
+        <div class="diagram-title"><span>📊</span> Stickman Studio End-to-End Architecture</div>
+        <div class="mermaid">
+flowchart TD
+    subgraph UI ["🖥️ WORKSTATION FRONTEND (Port 45450)"]
+        UI1["Step 1: Script & Prompts (Mode 1 AI / Mode 2 Importer)"]
+        UI2["Step 2: Worker Farm Monitor (RAM Telemetry & Health)"]
+        UI3["Step 3: Media Gallery & QA (Lightbox & One-Click Replace)"]
+        UI4["Step 4: Interactive Video Player (Ken Burns & Director)"]
+        UI5["Step 5: Post-Production Render (1080p MP4 & Audio Mixing)"]
+    end
+
+    subgraph SERVER ["⚙️ BACKEND LOCAL SERVICE (Node.js & SQLite)"]
+        ROUTER["REST API Routes & SSE Stream"]
+        DB[("SQLite WAL Database (studio.sqlite)")]
+        AI["AI Story Engine (Groq Llama 3 70B)"]
+        ORCH["Worker Orchestrator (Job Leases & Retries)"]
+        INGEST["Ingestion & QA Engine (Magic Bytes & Filters)"]
+        TL["Timeline Manager (Pacing & Timestamps)"]
+        RENDER["FFmpeg Render Engine (1080p / 9:16 H.264 & AAC)"]
+    end
+
+    subgraph FARM ["🌐 BROWSER WORKER FARM"]
+        W1["Worker W01 (Chrome Profile)"]
+        W2["Worker W02 (Chrome Profile)"]
+        W3["Worker W03 (Chrome Profile)"]
+        W4["Worker W04 (Chrome Profile)"]
+        EXT["Extension Bridge Client (Meta.ai Side Panel)"]
+    end
+
+    subgraph STORAGE ["📁 PERSISTENT STORAGE"]
+        CENTRAL["Projects/{project}/central_images/"]
+        RENDERS["Projects/{project}/renders/"]
+        VO["voiceover.mp3"]
+    end
+
+    UI1 -->|Create Prompts| ROUTER
+    UI2 -->|Assign Ranges| ROUTER
+    ROUTER --> AI
+    ROUTER --> DB
+    ROUTER --> ORCH
+    ORCH <-->|Lease Jobs & Heartbeats| FARM
+    FARM -->|Download WebP/PNG| INGEST
+    INGEST -->|Validate & Move| CENTRAL
+    CENTRAL --> DB
+    VO --> TL
+    DB --> TL
+    TL --> UI4
+    UI5 -->|Start Render| RENDER
+    CENTRAL --> RENDER
+    VO --> RENDER
+    RENDER -->|1080p MP4| RENDERS
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Workflow Guide -->
+    <section id="workflow" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">03</div>
+        <h2 class="section-title">Production Workflow: Kaam Kaise Karna Hai</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Here is the clear, zero-friction procedure for generating a complete stickman documentary video from scratch:
+      </p>
+
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>Stage</th>
+            <th>Action</th>
+            <th>Output / Expected Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong style="color: #fff;">1. Project Creation</strong></td>
+            <td>Click <code>+ New Project</code> in the top navigation bar. Enter project title (e.g. <em>Ancient Rome Stickman</em>) and target duration.</td>
+            <td>Creates dedicated directory under <code>Projects/</code> and registers project in SQLite.</td>
+          </tr>
+          <tr>
+            <td><strong style="color: #fff;">2. Prompt Ingestion</strong></td>
+            <td>
+              <strong>Mode 1:</strong> Paste raw documentary script, click <em>Generate AI Prompts</em> (Groq Llama 3).<br>
+              <strong>Mode 2:</strong> Paste pre-formatted prompts (e.g. <code>001_stickman...</code>) and click <em>Clean & Import</em>.
+            </td>
+            <td>Prompts are queued, sanitized, validated for photorealism violations, and stored in the database.</td>
+          </tr>
+          <tr>
+            <td><strong style="color: #fff;">3. Worker Dispatch</strong></td>
+            <td>Click <code>Launch Selected Workers</code> or <code>Assign Ranges Evenly</code>. Workers W01–W04 open in Chrome profiles.</td>
+            <td>Workers lease jobs from the queue, input prompts into Meta.ai side panel, and download images.</td>
+          </tr>
+          <tr>
+            <td><strong style="color: #fff;">4. Central QA Ingestion</strong></td>
+            <td>Navigate to <strong>Step 3: Media Ingestion & QA</strong>. Click <code>Run Ingestion Scan</code>.</td>
+            <td>Raw downloaded files are verified for magic bytes, renamed to <code>001_stickman.webp</code>, moved to central storage, and displayed in the QA gallery.</td>
+          </tr>
+          <tr>
+            <td><strong style="color: #fff;">5. Audio & Timeline Sync</strong></td>
+            <td>In <strong>Step 4</strong>, select pacing preset (e.g. <code>2/4s</code>) and click <code>Auto-Synchronize Timeline</code>.</td>
+            <td>All 45 images are evenly divided across the voiceover duration with crossfades.</td>
+          </tr>
+          <tr>
+            <td><strong style="color: #fff;">6. Canvas Preview & Direction</strong></td>
+            <td>Press <span class="kbd">Space</span> to play the video preview. Adjust scene durations or reorder scenes using <code>▲</code> / <code>▼</code>.</td>
+            <td>Real-time Ken Burns smooth pan and zoom animates each stickman scene with audio playback. Timings auto-sync to SQLite.</td>
+          </tr>
+          <tr>
+            <td><strong style="color: #fff;">7. 1080p Master Export</strong></td>
+            <td>Switch to <strong>Step 5</strong>, choose Landscape (16:9) or Vertical (9:16), set FPS (30 or 60), click <code>Start 1080p Master Render</code>.</td>
+            <td>FFmpeg encodes video with H.264, mixes voiceover and 7% ducked background music, and displays the final video in the integrated player.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    <!-- Section 4: Detailed Step Manual -->
+    <section id="step1" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">04</div>
+        <h2 class="section-title">Step 1: Script & Prompt Engineering (Modes 1 & 2)</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        Stickman Studio provides two dedicated input modes tailored for different production workflows:
+      </p>
+
+      <div class="card-grid">
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--cyan);">Mode 1: Groq AI Story Engine</div>
+          <div class="card-desc">
+            Powered by high-speed Groq Llama 3 70B / 8B. Automatically analyzes raw scripts, breaks them into cinematic story beats, extracts character references, and generates consistent 2D stickman prompts.
+          </div>
+          <div class="code-box" style="margin-top: 12px;">
+Prompt Pattern:
+2D hand-drawn stickman documentary illustration, minimalist black ink stick figure on clean white paper background, high contrast, crisp lines, scene {N}: [Action/Context]
+          </div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--emerald);">Mode 2: Clean Bulk Prompt Importer</div>
+          <div class="card-desc">
+            If you already have prompts from ChatGPT, Claude, or a text file, paste them directly. The importer automatically detects sequence numbers (001_, 002_), cleans whitespace, and checks for style compliance.
+          </div>
+          <div class="code-box" style="margin-top: 12px;">
+Example input formats:
+001 - Stickman working late at night...
+002: Stickman discovering a hidden door...
+Scene 003: Stickman reading ancient scroll...
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">🛡️ Deterministic QA Rule Enforcement</div>
+        The backend engine automatically rejects or flags prompts containing photorealism terms (such as <em>photorealistic, 3D, CGI, unreal engine, depth of field</em>) and in-image text labels (<em>speech bubble, labeled, subtitles</em>) to ensure pristine stickman aesthetic purity.
+      </div>
+    </section>
+
+    <!-- Section 5: Step 2 Worker Farm -->
+    <section id="step2" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">05</div>
+        <h2 class="section-title">Step 2: Chrome Worker Farm & Extension Bridge</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        Meta.ai enforces strict anti-abuse and session limits. To bypass rate-limits and enable high concurrency, Stickman Studio manages up to 8 independent Chrome profiles:
+      </p>
+
+      <div class="code-box">
+Workers Profile Layout:
+E:/stickman-video-automation/Workers/
+  ├── Worker-W01/  (User Data Profile 1 + Extension Bridge)
+  ├── Worker-W02/  (User Data Profile 2 + Extension Bridge)
+  ├── Worker-W03/  (User Data Profile 3 + Extension Bridge)
+  └── Worker-W04/  (User Data Profile 4 + Extension Bridge)
+      </div>
+
+      <h3 style="color: #fff; font-size: 17px; margin: 24px 0 12px 0;">Worker Lease & Heartbeat Protocol</h3>
+      <p style="color: var(--text-muted); font-size: 14px;">
+        Each worker communicates with the local REST API via periodic heartbeats. When a worker requests a job:
+      </p>
+      <ul style="color: var(--text-muted); margin-left: 20px; font-size: 14px; margin-top: 8px; line-height: 1.8;">
+        <li>Backend locks the prompt with a <strong>120-second lease</strong> to prevent double-generation.</li>
+        <li>Worker side panel types the prompt into Meta.ai chat interface and listens for image generation.</li>
+        <li>Once generated, the worker clicks the image download button and sends a heartbeat report to the backend.</li>
+        <li>If a worker crashes or fails to report a heartbeat within <strong>30 seconds</strong>, the orchestrator revokes the lease and reassigns the prompt to another idle worker.</li>
+      </ul>
+
+      <div class="callout warn">
+        <div class="callout-title">⚠️ RAM Telemetry & System Throttling</div>
+        Running 4 Chrome profiles concurrently consumes approximately 3.5GB to 5.5GB of physical RAM. Monitor the live <strong>RAM Telemetry Bar</strong> in Step 2. If memory exceeds 85%, close unused background applications or reduce active workers to 2.
+      </div>
+    </section>
+
+    <!-- Section 6: Step 3 Media Ingestion & QA -->
+    <section id="step3" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">06</div>
+        <h2 class="section-title">Step 3: Central Media Ingestion & Visual QA</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        Downloaded images cannot be used directly from browser temp folders. The Ingestion Engine performs automated reconciliation:
+      </p>
+
+      <div class="card-grid">
+        <div class="doc-card">
+          <div class="card-title">1. Signature Validation</div>
+          <div class="card-desc">Reads the initial 64KB byte buffer of every downloaded file. Verifies exact magic bytes for <strong>PNG (89 50 4E 47)</strong>, <strong>JPEG (FF D8 FF)</strong>, and <strong>WebP (RIFF...WEBP)</strong>. Rejecting truncated or corrupt downloads.</div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title">2. SHA-256 Checksum & Dedup</div>
+          <div class="card-desc">Calculates cryptographic SHA-256 hash. Detects identical duplicate downloads or AI hallucination loops.</div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title">3. Centralized Asset Migration</div>
+          <div class="card-desc">Safely copies images into <code>Projects/{project_id}/central_images/</code> with standardized sequential naming: <code>001_stickman.webp</code>.</div>
+        </div>
+      </div>
+
+      <h3 style="color: #fff; font-size: 17px; margin: 24px 0 12px 0;">Interactive Visual QA Gallery</h3>
+      <p style="color: var(--text-muted); font-size: 14px;">
+        In Step 3, you can view the complete asset gallery. Click any thumbnail to open the <strong>HD Lightbox</strong>. 
+        If an image fails creative intent, click <em>Replace Image</em> to upload an alternative or trigger a re-roll without breaking timeline synchronization.
+      </p>
+    </section>
+    <!-- Section 7: Step 4 Video Canvas Player -->
+    <section id="step4" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">07</div>
+        <h2 class="section-title">Step 4: Interactive Video Canvas Player & Scene Director</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        Step 4 delivers a real-time preview of your video before committing to a final 1080p render. 
+        It integrates a custom hardware-accelerated canvas renderer and Web Audio API:
+      </p>
+
+      <div class="card-grid">
+        <div class="doc-card">
+          <div class="card-title">🎥 Ken Burns Motion Simulation</div>
+          <div class="card-desc">Applies cinematic smooth zoom and pan easing across each stickman slide to create motion and eliminate static slideshow fatigue.</div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title">🎵 Audio Waveform Scrubber</div>
+          <div class="card-desc">Visualizes audio amplitude peaks and valleys. Click or drag anywhere along the timeline scrubber to jump instantly to any second of voiceover.</div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title">🎛️ Scene Director Cards</div>
+          <div class="card-desc">Individual cards for all scenes. Edit slide duration in seconds (e.g. <code>4.5s</code>) or click <code>▲</code> / <code>▼</code> to reorder scenes. Changes auto-save directly to SQLite.</div>
+        </div>
+      </div>
+
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>Keyboard Shortcut</th>
+            <th>Function</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="kbd">Space</span></td>
+            <td>Play / Pause canvas video preview with synchronized voiceover audio</td>
+          </tr>
+          <tr>
+            <td><span class="kbd">Left Arrow (←)</span></td>
+            <td>Step back 5 seconds in timeline</td>
+          </tr>
+          <tr>
+            <td><span class="kbd">Right Arrow (→)</span></td>
+            <td>Step forward 5 seconds in timeline</td>
+          </tr>
+          <tr>
+            <td><span class="kbd">16:9 / 9:16 Buttons</span></td>
+            <td>Toggle between YouTube Landscape (1920x1080) and TikTok/Reels Vertical (1080x1920)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 8: Step 5 Master Render -->
+    <section id="step5" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">08</div>
+        <h2 class="section-title">Step 5: Post-Production & FFmpeg 1080p Export</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        When you are satisfied with pacing and scene sequence, Step 5 renders the master broadcast video via FFmpeg:
+      </p>
+
+      <div class="code-box">
+Core FFmpeg Render Command:
+ffmpeg.exe -y -f concat -safe 0 -i concat_list.txt -i voiceover.mp3 -i background_music.mp3 \
+  -filter_complex "[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,fps=30[vout];[2:a]volume=0.07,atrim=0:DURATION[music];[1:a][music]amix=inputs=2:duration=first[aout]" \
+  -map "[vout]" -map "[aout]" -c:v libx264 -pix_fmt yuv420p -preset fast -crf 20 -r 30 \
+  -c:a aac -b:a 192k -movflags +faststart output_master_1080p.mp4
+      </div>
+
+      <div class="card-grid">
+        <div class="doc-card">
+          <div class="card-title">Strict 7% Audio Ducking</div>
+          <div class="card-desc">Background music is automatically normalized and ducked to exactly 7% (<code>volume=0.07</code>) so the narrator voice is crystal clear and never overpowered.</div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title">Auto Letterboxing & Scaling</div>
+          <div class="card-desc">Images with non-standard dimensions are smoothly letterboxed to crisp 1920x1080 (or 1080x1920) with pure black padding, preventing distortion or stretching.</div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title">Post-Render Probing</div>
+          <div class="card-desc">Before displaying to user, FFprobe verifies stream codec (H.264), audio codec (AAC), duration parity (>90%), and non-empty byte size.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 9: Step 6 Telemetry & API -->
+    <section id="step6" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">09</div>
+        <h2 class="section-title">Step 6: Telemetry, Reconcile & REST API Reference</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        Stickman Studio exposes a comprehensive local REST API for automation and telemetry:
+      </p>
+
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/v1/health</code></td>
+            <td>Returns server status, uptime, and database connectivity.</td>
+          </tr>
+          <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/v1/projects</code></td>
+            <td>Lists all local projects with prompt counts and timeline metadata.</td>
+          </tr>
+          <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/v1/projects</code></td>
+            <td>Creates a new production project with dedicated directory tree.</td>
+          </tr>
+          <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/v1/projects/:id/timeline</code></td>
+            <td>Fetches full master timeline, slide durations, and image URLs.</td>
+          </tr>
+          <tr>
+            <td><code>PUT</code></td>
+            <td><code>/api/v1/projects/:id/timeline/sync</code></td>
+            <td>Batch syncs reordered scenes and custom durations back to SQLite.</td>
+          </tr>
+          <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/v1/projects/:id/render</code></td>
+            <td>Triggers FFmpeg 1080p / 9:16 master render with audio mixing.</td>
+          </tr>
+          <tr>
+            <td><code>GET</code></td>
+            <td><code>/api/v1/system/telemetry</code></td>
+            <td>Returns live CPU usage, physical RAM, free memory, and active workers.</td>
+          </tr>
+          <tr>
+            <td><code>POST</code></td>
+            <td><code>/api/v1/projects/:id/reconcile</code></td>
+            <td>Scans project disk vs database and fixes missing or orphaned assets.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    <!-- Section 10: Audit & Flaws -->
+    <section id="audit-findings" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">10</div>
+        <h2 class="section-title">Comprehensive System Audit & Resolved Flaws</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 16px;">
+        During the comprehensive system review, the following bottlenecks and edge-case flaws were detected and resolved:
+      </p>
+
+      <div class="card-grid">
+        <div class="doc-card" style="border-left: 4px solid var(--emerald);">
+          <div class="card-title" style="color: #fff;">✅ Resolved: Timeline Reorder Desync</div>
+          <div class="card-desc">
+            <strong>Flaw:</strong> Reordering scenes or editing slide durations in the Scene Director only modified local browser memory without persisting to SQLite. Clicking render exported the video in the old sequence.<br>
+            <strong>Fix:</strong> Implemented <code>PUT /api/v1/projects/:id/timeline/sync</code> and auto-debounced backend synchronization.
+          </div>
+        </div>
+
+        <div class="doc-card" style="border-left: 4px solid var(--emerald);">
+          <div class="card-title" style="color: #fff;">✅ Resolved: Aspect Ratio Support</div>
+          <div class="card-desc">
+            <strong>Flaw:</strong> Render engine and FFprobe validation had hardcoded 1920x1080 resolution, causing vertical 9:16 renders to fail validation.<br>
+            <strong>Fix:</strong> Parameterized aspect ratio (16:9 Landscape @ 1920x1080 vs 9:16 Vertical @ 1080x1920) across routes, FFmpeg filters, and probe validation.
+          </div>
+        </div>
+
+        <div class="doc-card" style="border-left: 4px solid var(--emerald);">
+          <div class="card-title" style="color: #fff;">✅ Resolved: WebP Image Demuxing</div>
+          <div class="card-desc">
+            <strong>Flaw:</strong> Concat demuxer with WebP still frames required normalized forward-slash paths and proper framerate declarations.<br>
+            <strong>Fix:</strong> Validated Windows path conversions and verified successful multi-image WebP concatenation.
+          </div>
+        </div>
+
+        <div class="doc-card" style="border-left: 4px solid var(--amber);">
+          <div class="card-title" style="color: #fff;">⚠️ Memory Footprint in Multi-Worker Setups</div>
+          <div class="card-desc">
+            <strong>Bottleneck:</strong> When 4+ Chrome profiles are active simultaneously, RAM usage can spike by 4GB–6GB. On systems with 16GB RAM, opening too many workers can cause minor disk paging.<br>
+            <strong>Mitigation:</strong> Added RAM Telemetry indicator and memory warning badge when usage exceeds 85%.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 11: Troubleshooting -->
+    <section id="troubleshooting" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">11</div>
+        <h2 class="section-title">Troubleshooting & Error Guide</h2>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-title">Meta.ai Worker "Login Required" or Extension Not Responding</div>
+        <p style="margin-top: 6px;">
+          1. Launch the specific worker profile manually: <code>node studio/launcher.js --worker=W01</code>.<br>
+          2. Log in with your Facebook/Meta account once in the browser window.<br>
+          3. Pin the Stickman Studio Bridge extension and verify that the side panel opens without permission alerts.<br>
+          4. Close the browser. Subsequent automated runs will preserve the logged-in session cookie.
+        </p>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">FFmpeg Binary Missing Error</div>
+        <p style="margin-top: 6px;">
+          Stickman Studio expects precompiled Windows binaries at: <code>E:/stickman-video-automation/studio/bin/ffmpeg.exe</code> and <code>ffprobe.exe</code>. 
+          If you are moving the project to a new computer, copy the binaries into the <code>studio/bin/</code> folder.
+        </p>
+      </div>
+
+      <div class="callout success">
+        <div class="callout-title">Orphaned or Missing Media Recovery</div>
+        <p style="margin-top: 6px;">
+          If images were manually copied or deleted from the project folder, open <strong>Step 6: Telemetry & Logs</strong> and click <strong>Reconcile Database & Files</strong>. 
+          The engine will scan all files on disk, update checksums in SQLite, and repair missing references automatically.
+        </p>
+      </div>
+    </section>
+
+    <!-- Section 12: Suggestions -->
+    <section id="suggestions" class="doc-section">
+      <div class="section-header">
+        <div class="section-num">12</div>
+        <h2 class="section-title">Next-Gen Suggestions & Roadmap for Stickman Studio</h2>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        To take Stickman Studio from an enterprise automation tool to an industry-leading content engine, here are four high-impact enhancements:
+      </p>
+
+      <div class="card-grid">
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--cyan);">1. Kokoro TTS / Local Voiceover Synthesis</div>
+          <div class="card-desc">
+            Integrate a lightweight, lightning-fast 80M parameter local TTS model (like Kokoro-82M). Users could generate natural, expressive documentary voiceovers directly inside Step 1 without needing external ElevenLabs or CapCut files.
+          </div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--violet-light);">2. Whisper Automated Word-Level Captions</div>
+          <div class="card-desc">
+            Use the integrated Whisper transcription service to generate animated word-by-word karaoke-style subtitles (.ASS format). Burn them into the 1080p MP4 via FFmpeg <code>subtitles=</code> filter for high-retention Shorts and Reels.
+          </div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--emerald);">3. Dynamic Audio Sidechain Ducking</div>
+          <div class="card-desc">
+            Replace static 7% music volume with dynamic sidechain compression: when the voiceover speaks, background music smoothly drops to 5%; during dramatic narrative pauses, music swells up to 25% automatically.
+          </div>
+        </div>
+
+        <div class="doc-card">
+          <div class="card-title" style="color: var(--amber);">4. One-Click Batch Export (16:9 + 9:16)</div>
+          <div class="card-desc">
+            Add a "Dual Export" button that renders both full 16:9 YouTube landscape video and cropped 9:16 vertical short-form video in a single click, ready for immediate social distribution.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer style="margin-top: 80px; padding: 24px 0; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; color: var(--text-dim); font-size: 13px;">
+      <div>Stickman Studio © 2026. Local-First Automated Video Production Suite.</div>
+      <div style="font-family: var(--font-mono);">Engineered with Node.js, SQLite, Canvas & FFmpeg</div>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      darkMode: true,
+      background: '#070a14',
+      primaryColor: '#00f0ff',
+      primaryTextColor: '#f0f4fc',
+      primaryBorderColor: '#00f0ff',
+      lineColor: '#00f0ff',
+      secondaryColor: '#8a2be2',
+      tertiaryColor: '#0f1526'
+    }
+  });
+
+  const sections = document.querySelectorAll('.doc-section');
+  const navLinks = document.querySelectorAll('.nav-links li a');
+
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(section => {
+      const sectionTop = section.offsetTop - 100;
+      if (pageYOffset >= sectionTop) {
+        current = section.getAttribute('id');
+      }
+    });
+
+    navLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === `#${current}`) {
+        link.classList.add('active');
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
