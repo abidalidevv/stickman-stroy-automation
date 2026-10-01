@@ -335,3 +335,13 @@ Master Timeline Summary | Voiceover Status | Next Action | Alerts | Recent Activ
 ---
 
 *Checkpoint 11 — 2026-09-27. Next: unblock Groq API key or Meta login to proceed with real acceptance gates.*
+
+---
+
+*Checkpoint 12 - 2026-10-01. Advanced Studio UX & Pacing Automation:*
+- **Ported Twitch/YouTube 18 Typography Presets:** Live video preview overlay with dynamic word-by-word animation and 3-option formatting inspector (placement, font sizes, Google fonts, background box).
+- **CapCut Multi-Track Horizontal Timeline:** Voiceover audio lane, draggable visual scene cards, 0.25s duration adjusters, auto-equalize (3/4s ratio), missing image scanner, and database sync.
+- **Removed Path Fields:** Replaced confusing manual text path inputs with native file pickers and emerald file status chips (`🎵 filename.mp3`).
+- **Story / Voiceover Script .txt File Picker:** Direct file loading via FileReader with instant word-count analysis.
+- **Instant Audio Duration & Forecast Engine:** HTML5 Audio probe on voiceover pick; auto-calculates exact target prompts and images matching pacing presets (e.g., 3/4s standard = 1.33s/image).
+- **Character Consistency Reference Image Picker:** Dedicated picker card with square thumbnail preview and consistency lock for Groq AI prompt generation.
