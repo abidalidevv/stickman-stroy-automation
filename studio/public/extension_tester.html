@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stickman Studio — Extension & Worker Automation Tester</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: rgba(15, 23, 42, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover: rgba(30, 41, 59, 0.7);
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent-flow: #06b6d4;
+      --accent-meta: #8b5cf6;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 90% 80%, rgba(139, 92, 246, 0.1), transparent);
+    }
+
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(7, 9, 14, 0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary), var(--accent-meta));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      color: #fff;
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-title span {
+      background: linear-gradient(135deg, #60a5fa, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--success);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 1024px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.85rem;
+    }
+
+    .panel-title {
+      font-size: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .provider-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .provider-card {
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1rem;
+      background: rgba(15, 23, 42, 0.5);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .provider-card:hover {
+      background: var(--card-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .provider-card.active.flow {
+      border-color: var(--accent-flow);
+      background: rgba(6, 182, 212, 0.1);
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+    }
+
+    .provider-card.active.meta {
+      border-color: var(--accent-meta);
+      background: rgba(139, 92, 246, 0.1);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+    }
+
+    .provider-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .flow .provider-icon { background: rgba(6, 182, 212, 0.2); color: var(--accent-flow); }
+    .meta .provider-icon { background: rgba(139, 92, 246, 0.2); color: var(--accent-meta); }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    select, input[type="text"], textarea {
+      width: 100%;
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    select:focus, input[type="text"]:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+    }
+
+    textarea {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      resize: vertical;
+      min-height: 180px;
+    }
+
+    .ref-image-box {
+      border: 2px dashed var(--card-border);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    .ref-image-box:hover {
+      border-color: var(--primary);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .ref-thumb {
+      max-width: 120px;
+      max-height: 90px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      display: none;
+      object-fit: cover;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(51, 65, 85, 0.8);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    }
+
+    .console-box {
+      background: #020617;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1rem;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      height: 250px;
+      overflow-y: auto;
+      color: #e2e8f0;
+      line-height: 1.6;
+    }
+
+    .log-line { display: flex; gap: 8px; margin-bottom: 4px; }
+    .log-time { color: var(--text-dim); }
+    .log-tag { font-weight: 600; color: #60a5fa; }
+    .log-tag.success { color: #34d399; }
+    .log-tag.warn { color: #fbbf24; }
+    .log-tag.error { color: #f87171; }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      max-height: 250px;
+      overflow-y: auto;
+      padding: 4px;
+    }
+
+    .gallery-card {
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #020617;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .gallery-img {
+      width: 100%;
+      height: 90px;
+      object-fit: cover;
+      background: #0f172a;
+    }
+
+    .gallery-label {
+      padding: 6px 8px;
+      font-size: 0.72rem;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tips-card {
+      background: rgba(59, 130, 246, 0.05);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 12px;
+      padding: 1rem;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+
+    .tips-card strong { color: #93c5fd; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">S</div>
+      <div class="brand-title">STICKMAN <span>STUDIO</span> &bull; Extension Tester</div>
+    </div>
+    <div id="serviceStatus" class="status-badge">
+      <div class="status-dot"></div>
+      <span>Backend Connected (Port 45450)</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Settings, Prompts & Launch -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">1. Provider & Worker Profile</div>
+        <span id="activeProjectBadge" style="font-size: 0.8rem; color: var(--text-dim); font-family: var(--mono);">No Project</span>
+      </div>
+
+      <div class="provider-toggle">
+        <div id="providerFlow" class="provider-card flow active" onclick="selectProvider('flow')">
+          <div class="provider-icon">F</div>
+          <div>
+            <div style="font-weight: 700; font-size: 0.95rem;">Google Flow (Veo)</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Veo 3 &bull; Ingredients Add</div>
+          </div>
+        </div>
+
+        <div id="providerMeta" class="provider-card meta" onclick="selectProvider('meta')">
+          <div class="provider-icon">M</div>
+          <div>
+            <div style="font-weight: 700; font-size: 0.95rem;">Meta AI</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Llama Vision &bull; Clip Attachment</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label class="form-label">Worker Instance</label>
+          <select id="workerSelect">
+            <option value="W01">Worker W01 (Dedicated Flow)</option>
+            <option value="W02">Worker W02 (Dedicated Meta)</option>
+            <option value="W03">Worker W03 (Flow Profile)</option>
+            <option value="W04">Worker W04 (Meta Profile)</option>
+            <option value="W05">Worker W05</option>
+            <option value="W06">Worker W06</option>
+            <option value="W07">Worker W07</option>
+            <option value="W08">Worker W08</option>
+            <option value="W09">Worker W09</option>
+            <option value="W10">Worker W10</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Project Name</label>
+          <input type="text" id="projectNameInput" value="Stickman Automation Test">
+        </div>
+      </div>
+
+      <!-- Character Reference Image -->
+      <div class="form-group">
+        <label class="form-label">Character Reference Visual (Consistency)</label>
+        <div class="ref-image-box" onclick="document.getElementById('refFileInput').click()">
+          <img id="refThumb" class="ref-thumb" alt="Reference Character">
+          <div id="refUploadText" style="font-size: 0.85rem; color: var(--text-muted);">
+            <strong>Click to select Character Reference Image</strong> (PNG, JPG, WEBP)
+            <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;">Will be passed to Meta/Flow for character consistency</div>
+          </div>
+          <input type="file" id="refFileInput" accept="image/*" style="display: none;" onchange="handleRefImage(this)">
+        </div>
+      </div>
+
+      <!-- Sequential Prompts -->
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <label class="form-label">Sequential Prompts (001_...)</label>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" onclick="loadSamplePrompts()">Load 15 Stickman Prompts</button>
+            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem;" onclick="clearPrompts()">Clear</button>
+          </div>
+        </div>
+        <textarea id="promptsTextarea" placeholder="001_Clean premium 2D stickman illustration...&#10;002_Clean premium 2D stickman illustration..."></textarea>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="btn-row">
+        <button id="btnCreateProject" class="btn btn-primary" onclick="setupTestProject()">
+          <span>1. Setup Project & Prompts</span>
+        </button>
+        <button id="btnLaunchWorker" class="btn btn-success" onclick="launchWorkerBrowser()">
+          <span>2. Launch Worker Profile</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Column: Live Monitor, Telemetry & Gallery -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">2. Live Automation Telemetry</div>
+        <div id="workerStatePill" style="font-size: 0.78rem; font-family: var(--mono); color: var(--text-dim);">Worker: OFFLINE</div>
+      </div>
+
+      <div class="console-box" id="telemetryConsole">
+        <div class="log-line">
+          <span class="log-time">[00:00:00]</span>
+          <span class="log-tag">SYSTEM</span>
+          <span>Ready. Click "1. Setup Project & Prompts" to initialize queue.</span>
+        </div>
+      </div>
+
+      <div class="panel-header" style="margin-top: 0.5rem;">
+        <div class="panel-title">Generated & Ingested Images</div>
+        <span id="galleryCount" style="font-size: 0.8rem; font-family: var(--mono); color: var(--text-muted);">0 Images</span>
+      </div>
+
+      <div class="gallery-grid" id="imageGallery">
+        <div style="grid-column: 1/-1; text-align: center; color: var(--text-dim); padding: 2rem 0; font-size: 0.85rem;">
+          Images downloaded by the worker will appear here live.
+        </div>
+      </div>
+
+      <div class="tips-card">
+        <strong>Extension Modes Guide:</strong><br>
+        &bull; <strong>Auto Mode (Tool):</strong> When "Auto ON" is active on the extension top-pill, the worker automatically leases jobs from Studio, injects reference images, downloads into project folders, and completes sequentially.<br>
+        &bull; <strong>Manual Mode (Standalone):</strong> Toggle "Auto OFF" on the extension top-pill to run standalone prompts manually without Studio overriding or creating tabs.
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:45450/api/v1';
+    let currentProvider = 'flow';
+    let currentProjectId = null;
+    let pollInterval = null;
+    let selectedRefFile = null;
+
+    const DEFAULT_15_PROMPTS = `001_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: A person standing on a freezing high-Andes plateau at roughly 4,000 meters, vast rocky mountains behind him, visibly thin air.
+002_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: Close-up of the same stickman breathing in the thin mountain air, tiny breath marks around his face, wind lines crossing the scene.
+003_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: Wide shot of the stickman standing alone against an enormous high-altitude landscape, emphasizing isolation and altitude.
+004_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: Strong constant wind sweeping across the plateau while the stickman leans slightly into it.
+005_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: The same stickman wrapped in a simple coat while icy wind lines rush past him, sparse vegetation around his feet.
+006_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: Nighttime version of the plateau, the stickman shivering beneath a dark sky as frost covers the ground.
+007_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: Morning close-up of rocky soil beneath the stickman's feet, with a tiny scraggly weed emerging from the ground.
+008_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: The stickman kneeling and carefully examining the small weed growing among rocks.
+009_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: Cutaway-style view showing the weed's roots descending underground toward a small hidden tuber.
+010_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: Underground view of a tiny knobby tuber attached to the weed's roots, about walnut-sized.
+011_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: The stickman's hand holding the tiny rough tuber beside a walnut for scale, simple visual comparison.
+012_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: Extreme close-up of the tuber's rough bitter-looking skin and irregular shape, with the stickman looking puzzled.
+013_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: The stickman imagining biting the raw wild tuber, then recoiling with a shocked face.
+014_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: Visual metaphor of the raw tuber causing a burning mouth: stickman with wide eyes and small flame-like sensation marks near his mouth.
+015_Clean premium 2D educational stickman illustration, matching the supplied reference style: simple white/light-cream background, thin hand-drawn black outlines, round white stickman head, very expressive eyes and face, extremely simple thin black body/limbs, flat muted blue, green, tan and pale yellow accents, minimal objects, subtle clean shadows, no gradients, no photorealism, no text, no labels, no watermark, consistent character proportions and line weight, cinematic 16:9 composition, clear readable silhouette, professional YouTube documentary visual. Scene: The stickman clutching his stomach in pain after eating the raw tuber, with the tuber lying nearby.`;
+
+    function log(tag, message, type = 'info') {
+      const consoleBox = document.getElementById('telemetryConsole');
+      const timeStr = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      div.innerHTML = `<span class="log-time">[${timeStr}]</span><span class="log-tag ${type}">${tag}</span><span>${message}</span>`;
+      consoleBox.appendChild(div);
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    function selectProvider(prov) {
+      currentProvider = prov;
+      document.getElementById('providerFlow').classList.toggle('active', prov === 'flow');
+      document.getElementById('providerMeta').classList.toggle('active', prov === 'meta');
+      if (prov === 'flow') {
+        document.getElementById('workerSelect').value = 'W01';
+      } else {
+        document.getElementById('workerSelect').value = 'W02';
+      }
+      log('CONFIG', `Selected provider: ${prov.toUpperCase()}`);
+    }
+
+    function loadSamplePrompts() {
+      document.getElementById('promptsTextarea').value = DEFAULT_15_PROMPTS;
+      log('PROMPTS', 'Loaded 15 clean Andes Stickman Prompts.');
+    }
+
+    function clearPrompts() {
+      document.getElementById('promptsTextarea').value = '';
+    }
+
+    function handleRefImage(input) {
+      if (input.files && input.files[0]) {
+        selectedRefFile = input.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const thumb = document.getElementById('refThumb');
+          thumb.src = e.target.result;
+          thumb.style.display = 'block';
+          document.getElementById('refUploadText').innerHTML = `<strong>Selected:</strong> ${selectedRefFile.name} (${(selectedRefFile.size / 1024).toFixed(1)} KB)`;
+        };
+        reader.readAsDataURL(selectedRefFile);
+        log('REF_IMAGE', `Selected reference character: ${selectedRefFile.name}`);
+      }
+    }
+
+    async function setupTestProject() {
+      const name = document.getElementById('projectNameInput').value.trim() || 'Stickman Test';
+      const rawPrompts = document.getElementById('promptsTextarea').value.trim();
+
+      if (!rawPrompts) {
+        alert('Please enter or load prompts first!');
+        return;
+      }
+
+      log('PROJECT', `Creating project: "${name}" for ${currentProvider.toUpperCase()}...`);
+
+      try {
+        const createRes = await fetch(`${API_BASE}/projects`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            mode: 'MODE_2',
+            pacing_preset: '2/4s',
+            voiceover_duration: 30
+          })
+        });
+
+        const proj = await createRes.json();
+        if (!proj || !proj.id) throw new Error(proj.error || 'Failed to create project');
+        currentProjectId = proj.id;
+        document.getElementById('activeProjectBadge').textContent = `ID: ${currentProjectId}`;
+        log('PROJECT', `Project created: ${proj.name} (${proj.id})`, 'success');
+
+        // Upload reference image if selected
+        if (selectedRefFile) {
+          log('REF_IMAGE', 'Uploading character reference to project...');
+          const formData = new FormData();
+          formData.append('image', selectedRefFile);
+          formData.append('character_name', 'Stickman');
+          await fetch(`${API_BASE}/projects/${currentProjectId}/character-reference`, {
+            method: 'POST',
+            body: formData
+          });
+          log('REF_IMAGE', 'Character reference saved successfully!', 'success');
+        }
+
+        // Import Prompts
+        log('PROMPTS', 'Importing and validating sequential prompts...');
+        const importRes = await fetch(`${API_BASE}/projects/${currentProjectId}/prompts/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw_prompts: rawPrompts })
+        });
+        const importData = await importRes.json();
+        if (!importData.success) {
+          const errMsg = importData.error || (importData.errors && importData.errors.join(', ')) || 'Import failed';
+          throw new Error(errMsg);
+        }
+
+        log('PROMPTS', `Imported ${importData.count} sequential prompts cleanly (${importData.first_id} to ${importData.last_id})`, 'success');
+        startPolling();
+      } catch (err) {
+        log('ERROR', err.message, 'error');
+        alert('Setup error: ' + err.message);
+      }
+    }
+
+    async function launchWorkerBrowser() {
+      const workerId = document.getElementById('workerSelect').value;
+      log('WORKER', `Launching dedicated profile for ${workerId} (${currentProvider.toUpperCase()})...`);
+
+      try {
+        const res = await fetch(`${API_BASE}/workers/launch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            worker_id: workerId,
+            provider: currentProvider
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          log('WORKER', `Worker ${workerId} launched successfully! (PID: ${data.pid || 'Active'})`, 'success');
+          document.getElementById('workerStatePill').textContent = `Worker: ${workerId} (ACTIVE)`;
+          document.getElementById('workerStatePill').style.color = '#34d399';
+        } else {
+          throw new Error(data.error || 'Failed to launch worker');
+        }
+      } catch (err) {
+        log('ERROR', err.message, 'error');
+        alert('Worker launch error: ' + err.message);
+      }
+    }
+
+    function startPolling() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(pollTelemetry, 2500);
+      pollTelemetry();
+    }
+
+    async function pollTelemetry() {
+      if (!currentProjectId) return;
+      try {
+        const res = await fetch(`${API_BASE}/projects/${currentProjectId}/prompts`);
+        const prompts = await res.json();
+        if (!Array.isArray(prompts)) return;
+
+        let completed = 0;
+        let generating = 0;
+        let queued = 0;
+
+        const gallery = document.getElementById('imageGallery');
+        const existingImgCount = gallery.querySelectorAll('.gallery-card').length;
+
+        prompts.forEach(p => {
+          if (p.status === 'COMPLETED') completed++;
+          if (p.status === 'GENERATING' || p.status === 'DOWNLOADING') generating++;
+          if (p.status === 'QUEUED') queued++;
+        });
+
+        document.getElementById('galleryCount').textContent = `${completed} / ${prompts.length} Complete`;
+
+        if (completed > 0) {
+          gallery.innerHTML = '';
+          prompts.filter(p => p.status === 'COMPLETED').forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'gallery-card';
+            const imgUrl = p.file_path ? `/projects-media/${currentProjectId}/central_images/${p.file_name}` : '';
+            card.innerHTML = `
+              <img class="gallery-img" src="${imgUrl}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'80\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%231e293b\\'/><text x=\\'50%\\' y=\\'50%\\' fill=\\'%2364748b\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' font-size=\\'12\\'>${p.prompt_id_str}</text></svg>'">
+              <div class="gallery-label">${p.prompt_id_str} &bull; ${p.status}</div>
+            `;
+            gallery.appendChild(card);
+          });
+        }
+      } catch (e) {}
+    }
+
+    // Auto load prompts on page load
+    window.onload = () => {
+      loadSamplePrompts();
+    };
+  </script>
+</body>
+</html>

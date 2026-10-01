@@ -1,28 +1,31 @@
 import './assets/index.ts-BNvXgTH3.js';
 
-const openSidePanelTab = async (retries = 0) => {
+// Configure Chrome Side Panel Drawer behavior (Native side drawer, NO separate tab!)
+const setupSidePanel = async () => {
   try {
-    const url = chrome.runtime.getURL('src/ui/side-panel/index.html');
-    if (typeof chrome.windows !== 'undefined') {
-      const windows = await chrome.windows.getAll();
-      if (!windows || windows.length === 0) {
-        if (retries < 15) setTimeout(() => openSidePanelTab(retries + 1), 1000);
-        return;
-      }
-    }
-    const existing = await chrome.tabs.query({ url });
-    if (existing.length === 0) {
-      await chrome.tabs.create({ url, active: false });
-      console.log('[ServiceWorker] Opened background side-panel bridge tab:', url);
+    if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+      await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
     }
   } catch (e) {
-    if (retries < 15) setTimeout(() => openSidePanelTab(retries + 1), 1000);
+    console.warn('[ServiceWorker] setPanelBehavior error:', e);
   }
 };
 
-chrome.runtime.onStartup.addListener(() => openSidePanelTab(0));
-chrome.runtime.onInstalled.addListener(() => openSidePanelTab(0));
+chrome.runtime.onStartup.addListener(setupSidePanel);
+chrome.runtime.onInstalled.addListener(setupSidePanel);
+setupSidePanel();
+
+// Automatically open the native side panel drawer when a new window is created
 if (typeof chrome.windows !== 'undefined' && chrome.windows.onCreated) {
-  chrome.windows.onCreated.addListener(() => openSidePanelTab(0));
+  chrome.windows.onCreated.addListener(async (win) => {
+    try {
+      if (chrome.sidePanel && chrome.sidePanel.open && win && win.id) {
+        setTimeout(async () => {
+          try {
+            await chrome.sidePanel.open({ windowId: win.id });
+          } catch (err) {}
+        }, 1200);
+      }
+    } catch (e) {}
+  });
 }
-openSidePanelTab(0);

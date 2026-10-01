@@ -2035,7 +2035,7 @@ async function importRawPrompts() {
       loadProjectPrompts();
       onSelectProject(activeProjectId);
     } else {
-      showToast(`Validation error: ${(data.errors || []).join(', ')}`, 'error');
+      const errMsg = (data.errors && data.errors.length) ? data.errors.join(', ') : (data.error || 'Failed to import prompts'); showToast(`Validation error: ${errMsg}`, 'error');
     }
   } catch (err) {
     showToast(`Import error: ${err.message}`, 'error');

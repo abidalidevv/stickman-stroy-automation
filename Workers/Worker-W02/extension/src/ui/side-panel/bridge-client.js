@@ -1,15 +1,16 @@
 /**
- * STICKMAN STUDIO — BRIDGE CLIENT (FLOW/VEO EXTENSION)
- * Runs inside the Veo Flow Automation Side Panel UI.
+ * STICKMAN STUDIO — BRIDGE CLIENT (GOOGLE FLOW EXTENSION)
+ * Runs inside the Google Flow Automation Side Panel UI.
  * Connects extension to local Stickman Studio service at http://127.0.0.1:45450/api/v1/
  * 
- * Standalone safe: If Stickman Studio is offline, extension functions normally in manual mode.
+ * Standalone safe: When Auto is OFF or Studio is offline, extension functions 100% normally in manual mode.
+ * Non-intrusive UI: Floating top banner with minimize button. Does NOT block Run or queue buttons at the bottom.
  */
 
 (function () {
   const STUDIO_BASE_URL = 'http://127.0.0.1:45450/api/v1';
   const HEARTBEAT_INTERVAL_MS = 5000;
-  const JOB_POLL_INTERVAL_MS = 2500;
+  const JOB_POLL_INTERVAL_MS = 3000;
   const PROVIDER = 'flow';
 
   let workerId = 'W01'; // Default, dynamically read from worker-config or storage
@@ -18,8 +19,9 @@
   let isProcessingJob = false;
   let currentJobId = null;
   let authToken = '';
+  let isCollapsed = false;
 
-  // 1. Initialize Worker ID & Auth Token
+  // 1. Initialize Worker ID & Storage
   async function initConfig() {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -32,17 +34,14 @@
       console.warn('[Bridge] Storage read failed:', e);
     }
 
-    // Try importing worker-config.js if available
     try {
       const configModule = await import(chrome.runtime.getURL('worker-config.js'));
       if (configModule && configModule.WORKER_ID) {
         workerId = configModule.WORKER_ID;
       }
-    } catch (e) {
-      // worker-config fallback
-    }
+    } catch (e) {}
 
-    console.log(`[Stickman Bridge] Initialized Flow Worker: ${workerId}`);
+    console.log(`[Stickman Bridge] Initialized Flow Worker: ${workerId} (Auto: ${isAutomationEnabled})`);
     renderBridgeUI();
   }
 
@@ -53,13 +52,30 @@
       ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
       ...(options.headers || {})
     };
-
     const url = `${STUDIO_BASE_URL}${endpoint}`;
     return fetch(url, { ...options, headers });
   }
 
+  // Helper: Fetch character reference image as Base64 Data URL
+  async function getReferenceImageBase64(projectId) {
+    try {
+      const res = await studioFetch(`/projects/${projectId}/character-reference`);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+
   // 3. Worker Registration
   async function registerWorker() {
+    if (!isAutomationEnabled) return;
     try {
       const res = await studioFetch('/workers/register', {
         method: 'POST',
@@ -89,9 +105,7 @@
   // 4. Heartbeat Loop (~5s)
   async function sendHeartbeat() {
     if (!isAutomationEnabled) return;
-
     try {
-      // Check active tab state
       let currentUrl = 'about:blank';
       let loginStatus = 'IDLE';
 
@@ -125,7 +139,6 @@
           updateBridgeUI();
         }
       } else {
-        // If 404, re-register
         await registerWorker();
       }
     } catch (err) {
@@ -136,7 +149,7 @@
     }
   }
 
-  // 5. Job Polling Loop (~2.5s)
+  // 5. Job Polling Loop (~3s)
   async function pollForJob() {
     if (!isStudioConnected || !isAutomationEnabled || isProcessingJob) return;
 
@@ -160,28 +173,70 @@
     }
   }
 
-  // 6. Character Reference Initialization (Flow Ingredients Workflow)
+  // 6. Character Reference Initialization (Flow Ingredients & Media Upload)
   async function handleInitializeReference(job) {
     isProcessingJob = true;
     updateBridgeUI(`Init Ref: ${job.character_name || 'Stickman'}`);
 
     try {
-      console.log(`[Stickman Bridge] Initializing Flow Reference for ${workerId}:`, job);
+      console.log(`[Stickman Bridge] Initializing Character Reference for ${workerId}:`, job);
 
-      // Verify active tab is on flow.google.com
-      const tabs = await chrome.tabs.query({ url: ['*://flow.google.com/*'] });
-      let tab = tabs[0];
-      if (!tab) {
-        tab = await chrome.tabs.create({ url: 'https://flow.google.com/' });
+      let tabs = await chrome.tabs.query({ url: ['*://flow.google.com/*'] });
+      let targetTab = tabs[0];
+      if (!targetTab) {
+        targetTab = await chrome.tabs.create({ url: 'https://flow.google.com/', active: false });
         await new Promise(r => setTimeout(r, 4000));
       }
 
-      // Check if Flow already has characters or need scan
-      chrome.tabs.sendMessage(tab.id, { type: 'SCAN_CHARACTERS' }, (response) => {
-        console.log('[Stickman Bridge] Scanned existing Flow characters:', response);
-      });
+      // Fetch reference image base64
+      const refBase64 = await getReferenceImageBase64(job.project_id);
 
-      // Mark reference READY in Studio (reused for subsequent prompts)
+      if (refBase64 && targetTab && targetTab.id) {
+        // Execute injection script to click Add ingredients -> Upload media -> Add to prompt
+        await chrome.scripting.executeScript({
+          target: { tabId: targetTab.id },
+          func: (imageBase64) => {
+            try {
+              // 1. Look for + icon button (Add ingredients to prompt box)
+              const addBtn = document.querySelector('button.add-menu-trigger, button[aria-label*="Add ingredients"]');
+              if (addBtn) {
+                addBtn.click();
+                setTimeout(() => {
+                  // 2. Look for Upload media button
+                  const uploadBtn = document.querySelector('button.sidebar-upload-btn, button[mattooltip*="Upload media"]');
+                  if (uploadBtn) uploadBtn.click();
+
+                  // 3. Inject file into input if present
+                  const fileInput = document.querySelector('input[type="file"]');
+                  if (fileInput && imageBase64) {
+                    const byteChars = atob(imageBase64.split(',')[1] || imageBase64);
+                    const byteNums = new Array(byteChars.length);
+                    for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+                    const byteArray = new Uint8Array(byteNums);
+                    const file = new File([byteArray], 'character_ref.png', { type: 'image/png' });
+
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    fileInput.files = dt.files;
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+                    // 4. Click Add to prompt once uploaded
+                    setTimeout(() => {
+                      const addPromptBtn = document.querySelector('button.detail-add-to-prompt-btn');
+                      if (addPromptBtn) addPromptBtn.click();
+                    }, 1800);
+                  }
+                }, 800);
+              }
+            } catch (e) {
+              console.warn('[Stickman Flow] Reference attach script error:', e);
+            }
+          },
+          args: [refBase64]
+        }).catch(e => console.warn('[Stickman Flow] Script injection:', e));
+      }
+
+      // Mark reference READY in Studio
       await studioFetch(`/workers/${workerId}/reference-state`, {
         method: 'POST',
         body: JSON.stringify({
@@ -213,11 +268,10 @@
         body: JSON.stringify({ worker_id: workerId })
       });
 
-      // Find or open Flow tab
       let tabs = await chrome.tabs.query({ url: ['*://flow.google.com/*'] });
       let targetTab = tabs[0];
       if (!targetTab) {
-        targetTab = await chrome.tabs.create({ url: 'https://flow.google.com/' });
+        targetTab = await chrome.tabs.create({ url: 'https://flow.google.com/', active: false });
         await new Promise(r => setTimeout(r, 4000));
       }
 
@@ -231,8 +285,7 @@
         }, () => resolve());
       });
 
-      // Dispatch Prompt to Content Script via native AUTO_FILL_FLOW
-      // Strip numeric prefix so prompt is not polluted and filename is not double-numbered
+      // Strip numeric prefix so prompt is clean
       const cleanPrompt = (job.prompt_text || '').replace(/^\d{3,4}[_\s]+/, '').trim();
       const payload = {
         prompt: cleanPrompt,
@@ -267,7 +320,6 @@
         console.log('[Stickman Bridge] Flow content script dispatched prompt:', response);
       });
 
-      // Watch for completion via status listener
       setupJobCompletionWatcher(job, targetTab.id);
 
     } catch (err) {
@@ -342,30 +394,12 @@
     chrome.runtime.onMessage.addListener(statusListener);
   }
 
-  // 9. Non-intrusive UI Pill in Side Panel
+  // 9. Non-intrusive Top UI Banner with Minimize Toggle
   function renderBridgeUI() {
     let container = document.getElementById('stickman-bridge-banner');
     if (!container) {
       container = document.createElement('div');
       container.id = 'stickman-bridge-banner';
-      container.style.cssText = `
-        position: fixed;
-        bottom: 12px;
-        right: 12px;
-        left: 12px;
-        z-index: 99999;
-        background: #090d16;
-        border: 1px solid #1e293b;
-        border-radius: 8px;
-        padding: 8px 12px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 11px;
-        color: #f8fafc;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-      `;
       document.body.appendChild(container);
     }
     updateBridgeUI();
@@ -375,40 +409,117 @@
     const container = document.getElementById('stickman-bridge-banner');
     if (!container) return;
 
-    const statusDotColor = isStudioConnected ? '#10b981' : '#f59e0b';
-    const statusLabel = isStudioConnected
-      ? (statusText || (isProcessingJob ? 'Generating...' : 'Idle & Ready'))
-      : 'Studio Offline (Manual Mode)';
+    if (isCollapsed) {
+      container.style.cssText = `
+        position: fixed;
+        top: 6px;
+        right: 6px;
+        z-index: 99999;
+        background: #090d16;
+        border: 1px solid #06b6d4;
+        border-radius: 20px;
+        padding: 4px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 11px;
+        color: #f8fafc;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      `;
+      const dotColor = isAutomationEnabled ? (isStudioConnected ? '#10b981' : '#f59e0b') : '#64748b';
+      container.innerHTML = `
+        <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${dotColor};"></span>
+        <strong style="color: #06b6d4; font-size:10px;">${workerId}</strong>
+        <span style="font-size:9px; color:#94a3b8;">${isAutomationEnabled ? 'AUTO' : 'MANUAL'}</span>
+        <span style="color:#94a3b8; font-weight:bold; margin-left:3px; font-size:11px;">+</span>
+      `;
+      container.onclick = () => {
+        isCollapsed = false;
+        updateBridgeUI();
+      };
+      return;
+    }
+
+    container.onclick = null;
+    container.style.cssText = `
+      position: fixed;
+      top: 6px;
+      left: 6px;
+      right: 6px;
+      z-index: 99999;
+      background: #090d16;
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      border-radius: 8px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 11px;
+      color: #f8fafc;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    `;
+
+    const statusDotColor = !isAutomationEnabled
+      ? '#64748b'
+      : (isStudioConnected ? '#10b981' : '#f59e0b');
+
+    const statusLabel = !isAutomationEnabled
+      ? 'Manual Mode (Auto OFF)'
+      : (isStudioConnected
+          ? (statusText || (isProcessingJob ? 'Generating...' : 'Idle & Ready'))
+          : 'Studio Offline (Manual)');
 
     container.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${statusDotColor};"></span>
-        <strong style="color: #06b6d4;">STICKMAN STUDIO</strong>
-        <span style="color: #94a3b8;">${workerId}</span>
-        <span style="color: #64748b;">|</span>
-        <span style="color: ${isStudioConnected ? '#10b981' : '#94a3b8'};">${statusLabel}</span>
+      <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: ${statusDotColor}; flex-shrink: 0;"></span>
+        <strong style="color: #06b6d4; font-size: 10.5px; flex-shrink: 0;">STICKMAN</strong>
+        <span style="color: #94a3b8; font-size: 10px; flex-shrink: 0;">${workerId}</span>
+        <span style="color: #475569;">|</span>
+        <span style="color: ${isStudioConnected && isAutomationEnabled ? '#10b981' : '#94a3b8'}; font-size: 10px; overflow: hidden; text-overflow: ellipsis;">${statusLabel}</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <button id="stickman-toggle-auto" style="
+      <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+        <button id="stickman-toggle-auto" title="Toggle Auto Worker Mode vs Manual Standalone Mode" style="
           background: ${isAutomationEnabled ? '#06b6d4' : '#334155'};
-          color: #000;
+          color: ${isAutomationEnabled ? '#000' : '#fff'};
           font-weight: 600;
           border: none;
           border-radius: 4px;
-          padding: 3px 8px;
-          font-size: 10px;
+          padding: 2px 7px;
+          font-size: 9.5px;
           cursor: pointer;
         ">${isAutomationEnabled ? 'Auto ON' : 'Auto OFF'}</button>
+        <button id="stickman-minimize-btn" title="Minimize Banner to Corner Badge" style="
+          background: transparent;
+          color: #94a3b8;
+          border: none;
+          padding: 0 4px;
+          font-size: 13px;
+          cursor: pointer;
+          line-height: 1;
+        ">&minus;</button>
       </div>
     `;
 
     const toggleBtn = document.getElementById('stickman-toggle-auto');
     if (toggleBtn) {
-      toggleBtn.onclick = () => {
+      toggleBtn.onclick = (e) => {
+        e.stopPropagation();
         isAutomationEnabled = !isAutomationEnabled;
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
           chrome.storage.local.set({ STICKMAN_AUTO_ENABLED: isAutomationEnabled });
         }
+        updateBridgeUI();
+      };
+    }
+
+    const minBtn = document.getElementById('stickman-minimize-btn');
+    if (minBtn) {
+      minBtn.onclick = (e) => {
+        e.stopPropagation();
+        isCollapsed = true;
         updateBridgeUI();
       };
     }

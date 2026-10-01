@@ -137,16 +137,31 @@ async function getNextJob(workerId, requestedProjectId = null) {
 
   const now = new Date().toISOString();
 
+  // Resolve target project: explicit or latest ACTIVE
+  let targetProjectId = requestedProjectId;
+  if (!targetProjectId) {
+    const latestActive = await db.get(`SELECT id FROM projects WHERE status = 'ACTIVE' ORDER BY created_at DESC LIMIT 1`);
+    if (latestActive) {
+      targetProjectId = latestActive.id;
+    }
+  }
+
   // 1. Check for active in-flight leased job
-  const activeJob = await db.get(`
+  let activeJobQuery = `
     SELECT j.*, p.prompt_text, p.prompt_index, p.prompt_id_str, pr.name as project_name, pr.directory_path
     FROM jobs j
     JOIN prompts p ON j.prompt_id = p.id
     JOIN projects pr ON j.project_id = pr.id
     WHERE j.worker_id = ? AND j.status IN ('ASSIGNED', 'ACKNOWLEDGED', 'GENERATING', 'DOWNLOADING')
       AND j.lease_expires_at > ?
-    ORDER BY j.created_at DESC LIMIT 1
-  `, [id, now]);
+  `;
+  const activeParams = [id, now];
+  if (targetProjectId) {
+    activeJobQuery += ` AND j.project_id = ? `;
+    activeParams.push(targetProjectId);
+  }
+  activeJobQuery += ` ORDER BY j.created_at DESC LIMIT 1 `;
+  const activeJob = await db.get(activeJobQuery, activeParams);
 
   if (activeJob) {
     return {
@@ -163,7 +178,7 @@ async function getNextJob(workerId, requestedProjectId = null) {
     };
   }
 
-  // 2. High-Priority Repair Queue check
+  // 2. High-Priority Repair Queue check (scoped to target project)
   let repairQuery = `
     SELECT p.*, pr.name as project_name, pr.directory_path, pr.character_id
     FROM prompts p
@@ -171,9 +186,9 @@ async function getNextJob(workerId, requestedProjectId = null) {
     WHERE p.status = 'REPAIR_PENDING' AND pr.status = 'ACTIVE'
   `;
   const repairParams = [];
-  if (requestedProjectId) {
+  if (targetProjectId) {
     repairQuery += ` AND p.project_id = ? `;
-    repairParams.push(requestedProjectId);
+    repairParams.push(targetProjectId);
   }
   repairQuery += ` ORDER BY pr.created_at DESC, p.prompt_index ASC LIMIT 1 `;
   const repairPrompt = await db.get(repairQuery, repairParams);
@@ -224,7 +239,7 @@ async function getNextJob(workerId, requestedProjectId = null) {
     };
   }
 
-  // 3. Sequential Fixed-Range Prompt Allocation
+  // 3. Worker-assigned prompt check
   let nextQuery = `
     SELECT p.*, pr.name as project_name, pr.directory_path, pr.character_id
     FROM prompts p
@@ -232,12 +247,29 @@ async function getNextJob(workerId, requestedProjectId = null) {
     WHERE p.assigned_worker_id = ? AND p.status = 'QUEUED' AND pr.status = 'ACTIVE'
   `;
   const nextParams = [id];
-  if (requestedProjectId) {
+  if (targetProjectId) {
     nextQuery += ` AND p.project_id = ? `;
-    nextParams.push(requestedProjectId);
+    nextParams.push(targetProjectId);
   }
   nextQuery += ` ORDER BY pr.created_at DESC, p.prompt_index ASC LIMIT 1 `;
-  const nextPrompt = await db.get(nextQuery, nextParams);
+  let nextPrompt = await db.get(nextQuery, nextParams);
+
+  // 4. Fallback: Unassigned prompt check (for Mode 2 or flexible workers)
+  if (!nextPrompt) {
+    let unassignedQuery = `
+      SELECT p.*, pr.name as project_name, pr.directory_path, pr.character_id
+      FROM prompts p
+      JOIN projects pr ON p.project_id = pr.id
+      WHERE (p.assigned_worker_id IS NULL OR p.assigned_worker_id = '') AND p.status = 'QUEUED' AND pr.status = 'ACTIVE'
+    `;
+    const unassignedParams = [];
+    if (targetProjectId) {
+      unassignedQuery += ` AND p.project_id = ? `;
+      unassignedParams.push(targetProjectId);
+    }
+    unassignedQuery += ` ORDER BY pr.created_at DESC, p.prompt_index ASC LIMIT 1 `;
+    nextPrompt = await db.get(unassignedQuery, unassignedParams);
+  }
 
   if (nextPrompt) {
     if (nextPrompt.character_id && (worker.reference_status !== 'READY' || worker.active_project_id !== nextPrompt.project_id)) {
@@ -265,8 +297,8 @@ async function getNextJob(workerId, requestedProjectId = null) {
     `, [jobId, nextPrompt.project_id, nextPrompt.id, id, worker.provider, id, leaseExpires, now, now]);
 
     await db.run(`
-      UPDATE prompts SET status = 'ASSIGNED', updated_at = ? WHERE id = ?
-    `, [now, nextPrompt.id]);
+      UPDATE prompts SET status = 'ASSIGNED', assigned_worker_id = ?, updated_at = ? WHERE id = ?
+    `, [id, now, nextPrompt.id]);
 
     await db.run(`UPDATE workers SET active_job_id = ? WHERE id = ?`, [jobId, id]);
 
@@ -337,18 +369,43 @@ async function completeJob(jobId, { fileName, filename, filePath, file_path, fil
   let actualFilePath = filePath || file_path || '';
   let actualFileName = fileName || filename || (actualFilePath ? path.basename(actualFilePath) : '');
 
-  // 1. Physical existence verification
+  // 1. Physical existence verification across candidate directories
   if (!actualFilePath || !fs.existsSync(actualFilePath)) {
     const project = await db.get('SELECT * FROM projects WHERE id = ?', [job.project_id]);
     const candidates = [
       actualFilePath,
       project ? path.join(project.directory_path, 'central_images', actualFileName) : null,
-      path.join(ingestionManager.downloadsDir, actualFileName)
+      path.join(ingestionManager.downloadsDir, actualFileName),
+      project ? path.join(ingestionManager.downloadsDir, project.name, actualFileName) : null,
+      path.join(ingestionManager.downloadsDir, 'StickmanStudio', actualFileName)
     ].filter(Boolean);
 
-    const found = candidates.find(c => fs.existsSync(c));
+    let found = candidates.find(c => fs.existsSync(c));
+
     if (!found) {
-      throw new Error(`Cannot complete job ${jobId}: physical image file does not exist on disk at "${actualFilePath}"`);
+      // Look for any file starting with prompt_id_str in project and downloads folders
+      const searchDirs = [
+        project ? path.join(project.directory_path, 'central_images') : null,
+        project ? path.join(ingestionManager.downloadsDir, project.name) : null,
+        path.join(ingestionManager.downloadsDir, 'StickmanStudio'),
+        ingestionManager.downloadsDir
+      ].filter(Boolean);
+
+      for (const dir of searchDirs) {
+        if (fs.existsSync(dir)) {
+          const files = fs.readdirSync(dir);
+          const match = files.find(f => f.startsWith(prompt.prompt_id_str) && /\.(png|jpg|jpeg|webp)$/i.test(f));
+          if (match) {
+            found = path.join(dir, match);
+            actualFileName = match;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!found) {
+      throw new Error(`Cannot complete job ${jobId}: physical image file does not exist on disk at "${actualFilePath}" or in downloads`);
     }
     actualFilePath = found;
   }

@@ -211,11 +211,8 @@ async function parseAndImportPrompts(projectId, rawPromptText, qaMetadataMap = {
   const now = new Date().toISOString();
   await db.exec('BEGIN TRANSACTION;');
   try {
-    // Delete existing queued prompts if re-importing
-    await db.run(`DELETE FROM prompts WHERE project_id = ? AND status = 'QUEUED'`, [projectId]);
-
     for (const p of promptEntries) {
-      const promptPk = `${projectId}_${p.idStr}`;
+      const promptPk = `prompt_${projectId}_${p.idStr}`;
       const qa = qaMetadataMap[p.idStr] || {};
       await db.run(`
         INSERT INTO prompts (
@@ -223,8 +220,16 @@ async function parseAndImportPrompts(projectId, rawPromptText, qaMetadataMap = {
           status, source_span, scene_desc, characters, objects, location,
           qa_verdict, qa_details, provider, model, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
+        ON CONFLICT(project_id, prompt_index) DO UPDATE SET
+          id = excluded.id,
           prompt_text = excluded.prompt_text,
+          prompt_id_str = excluded.prompt_id_str,
+          status = 'QUEUED',
+          file_path = NULL,
+          file_name = NULL,
+          file_size = 0,
+          sha256 = NULL,
+          assigned_worker_id = NULL,
           source_span = excluded.source_span,
           scene_desc = excluded.scene_desc,
           characters = excluded.characters,
@@ -249,6 +254,10 @@ async function parseAndImportPrompts(projectId, rawPromptText, qaMetadataMap = {
         now, now
       ]);
     }
+
+    // Prune excess prompts if previous count was higher than new imported count
+    const maxIndex = Math.max(...promptEntries.map(p => p.index));
+    await db.run(`DELETE FROM prompts WHERE project_id = ? AND prompt_index > ?`, [projectId, maxIndex]);
 
     // Update target count in project
     await db.run(`UPDATE projects SET target_image_count = ?, updated_at = ? WHERE id = ?`, [promptEntries.length, now, projectId]);
