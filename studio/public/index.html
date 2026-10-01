@@ -232,7 +232,7 @@
                   <label class="form-label">Voiceover Audio File / Path</label>
                   <div style="display: flex; gap: 8px;">
                     <input type="file" id="m1VoiceoverFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleM1VoiceoverFile(this)" />
-                    <input type="text" id="m1VoiceoverPath" class="form-input" placeholder="or path: Demo/voiceover.wav" style="flex: 1;" oninput="onM1VoiceoverPathChange()" />
+                    <input type="hidden" id="m1VoiceoverPath" /><div id="m1VoiceoverStatus" class="file-picked-chip" style="display: none;"></div>
                   </div>
                 </div>
 
@@ -264,7 +264,7 @@
                   <label class="form-label">Background Music (Optional)</label>
                   <div style="display: flex; gap: 8px;">
                     <input type="file" id="m1MusicFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleM1MusicFile(this)" />
-                    <input type="text" id="m1MusicPath" class="form-input" placeholder="path: Demo/bgm.mp3" style="flex: 1;" />
+                    <input type="hidden" id="m1MusicPath" /><div id="m1MusicStatus" class="file-picked-chip" style="display: none;"></div>
                   </div>
                 </div>
 
@@ -275,44 +275,83 @@
                   <input type="range" id="m1MusicVol" min="0" max="100" value="7" class="form-input" style="padding: 4px 0;" oninput="updateM1MusicVolume(this.value)" />
                 </div>
               </div>
+
+              <!-- Live Audio Pacing & Generation Forecast Card -->
+              <div class="audio-forecast-card" id="m1ForecastCard">
+                <div class="forecast-item">
+                  <span class="forecast-title">Audio Duration</span>
+                  <span class="forecast-value text-emerald" id="m1ForecastDur">72.0s</span>
+                </div>
+                <div class="forecast-arrow">→</div>
+                <div class="forecast-item">
+                  <span class="forecast-title">Pacing Rule</span>
+                  <span class="forecast-value" id="m1ForecastPacing">3 imgs / 4s (1.33s/image)</span>
+                </div>
+                <div class="forecast-arrow">→</div>
+                <div class="forecast-item highlight">
+                  <span class="forecast-title">Target Generation</span>
+                  <span class="forecast-value" id="m1ForecastCount">54 Prompts &amp; 54 Images</span>
+                </div>
+              </div>
             </div>
 
             <!-- Character Reference Consistency Box -->
             <div style="background: rgba(10, 14, 24, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
-              <div style="font-size: 12px; font-weight: 800; color: var(--violet); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
-                👤 Character Reference & Visual Consistency
+              <div style="font-size: 12px; font-weight: 800; color: var(--violet); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <span>🎭 Character Reference &amp; Visual Consistency</span>
+                <span id="m1CharBadge" class="brand-badge" style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd;">Consistency Active</span>
               </div>
+
+              <div class="char-ref-picker-card" style="margin-bottom: 14px;">
+                <div class="char-ref-thumb-box" id="m1CharThumbBox">
+                  <span class="char-ref-thumb-placeholder" id="m1CharPlaceholder">🎭</span>
+                  <img id="m1CharThumb" class="char-ref-thumb-img" alt="Character Reference" />
+                </div>
+                <div class="char-ref-meta">
+                  <div class="char-ref-name">Character Visual Consistency Reference Image</div>
+                  <div class="char-ref-status" id="m1CharStatusText">Pick reference image to lock character appearance across all scenes</div>
+                  <div style="display: flex; gap: 8px; margin-top: 6px;">
+                    <input type="file" id="m1CharFile" accept="image/*" style="display: none;" onchange="handleM1CharFile(this)" />
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('m1CharFile').click()" style="font-size: 11.5px; padding: 6px 14px; cursor: pointer;">
+                      🖼️ Pick Reference Image
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="m1CharRemoveBtn" onclick="removeM1CharImage()" style="font-size: 11.5px; padding: 6px 12px; display: none; color: var(--rose); cursor: pointer;">
+                      ✖ Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div class="grid-2">
                 <div class="form-group">
-                  <label class="form-label">Character Name & Avatar</label>
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="m1CharacterName" class="form-input" value="Main Stickman" style="flex: 1;" />
-                    <input type="file" id="m1CharFile" accept="image/*" style="display: none;" onchange="handleM1CharFile(this)" />
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('m1CharFile').click()" style="font-size: 11.5px; padding: 7px 12px; white-space: nowrap;">
-                      📷 Upload Avatar
-                    </button>
-                    <img id="m1CharThumb" src="" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; display: none; border: 1px solid var(--cyan);" />
-                  </div>
+                  <label class="form-label">Character Name</label>
+                  <input type="text" id="m1CharacterName" class="form-input" value="Main Stickman" />
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label">Character Consistency Reference</label>
+                  <label class="form-label">Character Visual Consistency Prompt Anchor</label>
                   <input type="text" id="m1CharacterRef" class="form-input" placeholder="e.g. Minimalist stickman hero wearing a red headband and blue sneakers, black ink outlines..." />
                 </div>
               </div>
 
               <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Recurring Visual Elements & Atmosphere</label>
+                <label class="form-label">Recurring Visual Elements &amp; Atmosphere</label>
                 <input type="text" id="m1VisualElements" class="form-input" placeholder="e.g. Neon glowing sword, floating dark cyberpunk city, minimalist blackboard aesthetic..." />
               </div>
             </div>
 
             <!-- Voiceover Script Input -->
             <div class="form-group">
-              <label class="form-label" style="display: flex; justify-content: space-between;">
-                <span>Story / Voiceover Script</span>
-                <span id="m1WordCountLabel" style="color: var(--cyan); font-weight: 700;">0 words</span>
-              </label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0;">Story / Voiceover Script</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <input type="file" id="m1ScriptFile" accept=".txt,.text,.md" style="display: none;" onchange="handleScriptFile(this, 'm1')" />
+                  <button type="button" class="btn btn-secondary" onclick="document.getElementById('m1ScriptFile').click()" style="font-size: 11px; padding: 4px 12px; cursor: pointer;">
+                    📄 Pick .txt Script File
+                  </button>
+                  <span id="m1WordCountLabel" style="color: var(--cyan); font-weight: 700; font-size: 12px;">0 words</span>
+                </div>
+              </div>
               <textarea id="m1ScriptInput" class="form-textarea" placeholder="Paste your story or voiceover script here..." oninput="updateM1ScriptWordCount()" style="min-height: 160px;"></textarea>
             </div>
 
@@ -376,7 +415,7 @@
                   <label class="form-label">Voiceover Audio File / Path</label>
                   <div style="display: flex; gap: 8px;">
                     <input type="file" id="m2VoiceoverFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleM2VoiceoverFile(this)" />
-                    <input type="text" id="m2VoiceoverPath" class="form-input" placeholder="path: Demo/voiceover.wav" style="flex: 1;" oninput="onM2VoiceoverPathChange()" />
+                    <input type="hidden" id="m2VoiceoverPath" /><div id="m2VoiceoverStatus" class="file-picked-chip" style="display: none;"></div>
                   </div>
                 </div>
 
@@ -408,9 +447,27 @@
                     BGM Volume: <span id="m2MusicVolLabel" style="color: var(--cyan); font-weight: 700;">7%</span>
                   </label>
                   <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="m2MusicPath" class="form-input" placeholder="path: Demo/bgm.mp3" style="flex: 1;" />
+                    <input type="hidden" id="m2MusicPath" />
                     <input type="range" id="m2MusicVol" min="0" max="100" value="7" style="width: 90px;" oninput="document.getElementById('m2MusicVolLabel').textContent = this.value + '%'" />
                   </div>
+                </div>
+              </div>
+
+              <!-- Live Audio Forecast Card Mode 2 -->
+              <div class="audio-forecast-card" id="m2ForecastCard">
+                <div class="forecast-item">
+                  <span class="forecast-title">Audio Duration</span>
+                  <span class="forecast-value text-emerald" id="m2ForecastDur">72.0s</span>
+                </div>
+                <div class="forecast-arrow">→</div>
+                <div class="forecast-item">
+                  <span class="forecast-title">Pacing Rule</span>
+                  <span class="forecast-value" id="m2ForecastPacing">3 imgs / 4s (1.33s/img)</span>
+                </div>
+                <div class="forecast-arrow">→</div>
+                <div class="forecast-item highlight">
+                  <span class="forecast-title">Expected Prompts</span>
+                  <span class="forecast-value" id="m2ForecastCount">54 Prompts Expected</span>
                 </div>
               </div>
             </div>
@@ -1194,7 +1251,7 @@
             <label class="form-label">Voiceover Audio File / Path</label>
             <div style="display: flex; gap: 8px;">
               <input type="file" id="newProjVoiceoverFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleModalVoiceoverFile(this, 'm1')" />
-              <input type="text" id="newProjVoiceoverPath" class="form-input" placeholder="or path: Demo/voiceover.wav" style="flex: 1;" oninput="onVoiceoverPathChange('m1')" />
+              <input type="hidden" id="newProjVoiceoverPath" /><div id="newProjVoiceoverStatus" class="file-picked-chip" style="display: none;"></div>
             </div>
           </div>
 
@@ -1222,13 +1279,23 @@
             </select>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Required Prompt Calculation</label>
-            <div style="background: rgba(10, 14, 24, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; height: 38px;">
-              <span style="color: var(--text-muted);">Needed Prompts:</span>
-              <strong id="modalTargetPromptsM1" style="color: var(--cyan); font-size: 14px;">54 Prompts</strong>
-            </div>
+        <!-- Live Audio Pacing & Generation Forecast in Modal -->
+        <div class="audio-forecast-card" id="modalForecastCardM1" style="margin-bottom: 14px; margin-top: 10px;">
+          <div class="forecast-item">
+            <span class="forecast-title">Audio Duration</span>
+            <span class="forecast-value text-emerald" id="modalForecastDurM1">72.0s</span>
           </div>
+          <div class="forecast-arrow">→</div>
+          <div class="forecast-item">
+            <span class="forecast-title">Pacing Rule</span>
+            <span class="forecast-value" id="modalForecastPacingM1">3 imgs / 4s (1.33s/image)</span>
+          </div>
+          <div class="forecast-arrow">→</div>
+          <div class="forecast-item highlight">
+            <span class="forecast-title">Required Prompts &amp; Images</span>
+            <span class="forecast-value" id="modalTargetPromptsM1">54 Prompts &amp; 54 Images</span>
+          </div>
+        </div>
         </div>
 
         <div class="grid-2">
@@ -1236,7 +1303,7 @@
             <label class="form-label">Background Music (Optional)</label>
             <div style="display: flex; gap: 8px;">
               <input type="file" id="newProjMusicFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleModalMusicFile(this, 'm1')" />
-              <input type="text" id="newProjMusicPath" class="form-input" placeholder="or path: Demo/bgm.mp3" style="flex: 1;" />
+              <input type="hidden" id="newProjMusicPath" /><div id="newProjMusicStatus" class="file-picked-chip" style="display: none;"></div>
             </div>
           </div>
 
@@ -1248,17 +1315,30 @@
           </div>
         </div>
 
+        <div class="char-ref-picker-card" style="margin-bottom: 14px; margin-top: 6px;">
+          <div class="char-ref-thumb-box" id="newProjCharThumbBox">
+            <span class="char-ref-thumb-placeholder" id="newProjCharPlaceholder">🎭</span>
+            <img id="newProjCharThumb" class="char-ref-thumb-img" alt="Character Reference" />
+          </div>
+          <div class="char-ref-meta">
+            <div class="char-ref-name">Character Consistency Reference Image</div>
+            <div class="char-ref-status" id="newProjCharStatusText">Pick reference image to lock character appearance across all scenes</div>
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              <input type="file" id="newProjCharFile" accept="image/*" style="display: none;" onchange="handleModalCharImage(this, 'm1')" />
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('newProjCharFile').click()" style="font-size: 11.5px; padding: 6px 12px; cursor: pointer;">
+                🖼️ Pick Reference Image
+              </button>
+              <button type="button" class="btn btn-secondary" id="newProjCharRemoveBtn" onclick="removeModalCharImage('m1')" style="font-size: 11.5px; padding: 6px 10px; display: none; color: var(--rose); cursor: pointer;">
+                ✖ Remove
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="grid-2">
           <div class="form-group">
-            <label class="form-label">Character Name & Reference Avatar</label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="text" id="newProjCharName" class="form-input" value="Main Stickman" style="flex: 1;" />
-              <input type="file" id="newProjCharFile" accept="image/*" style="display: none;" onchange="handleModalCharImage(this, 'm1')" />
-              <button type="button" class="btn btn-secondary" onclick="document.getElementById('newProjCharFile').click()" style="font-size: 11.5px; padding: 7px 10px; white-space: nowrap;">
-                📷 Avatar
-              </button>
-              <img id="newProjCharThumb" src="" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; display: none; border: 1px solid var(--cyan);" />
-            </div>
+            <label class="form-label">Character Name</label>
+            <input type="text" id="newProjCharName" class="form-input" value="Main Stickman" />
           </div>
 
           <div class="form-group">
@@ -1268,10 +1348,16 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" style="display: flex; justify-content: space-between;">
-            <span>Voiceover / Story Script</span>
-            <span id="newProjScriptWordCount" style="color: var(--cyan); font-weight: 700;">0 words</span>
-          </label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" style="margin-bottom: 0;">Voiceover / Story Script</label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <input type="file" id="newProjScriptFile" accept=".txt,.text,.md" style="display: none;" onchange="handleScriptFile(this, 'modal_m1')" />
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('newProjScriptFile').click()" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">
+                📄 Pick .txt File
+              </button>
+              <span id="newProjScriptWordCount" style="color: var(--cyan); font-weight: 700; font-size: 11px;">0 words</span>
+            </div>
+          </div>
           <textarea id="newProjScript" class="form-textarea" placeholder="Paste your story or voiceover script here..." style="min-height: 120px;" oninput="updateModalScriptWordCount('m1')"></textarea>
         </div>
 
@@ -1309,7 +1395,15 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Accompanying Story Script / Transcript</label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" style="margin-bottom: 0;">Accompanying Story Script / Transcript</label>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="file" id="newProjScriptFileM2" accept=".txt,.text,.md" style="display: none;" onchange="handleScriptFile(this, 'modal_m2')" />
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('newProjScriptFileM2').click()" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">
+                📄 Pick .txt File
+              </button>
+            </div>
+          </div>
           <textarea id="newProjScriptM2" class="form-textarea" placeholder="Paste the matching voiceover script for captions & timeline alignment..." style="min-height: 80px;"></textarea>
         </div>
 
@@ -1318,7 +1412,7 @@
             <label class="form-label">Voiceover Audio File / Path</label>
             <div style="display: flex; gap: 8px;">
               <input type="file" id="newProjVoiceoverFileM2" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleModalVoiceoverFile(this, 'm2')" />
-              <input type="text" id="newProjVoiceoverPathM2" class="form-input" placeholder="or path: Demo/voiceover.wav" style="flex: 1;" oninput="onVoiceoverPathChange('m2')" />
+              <input type="hidden" id="newProjVoiceoverPathM2" /><div id="newProjVoiceoverStatusM2" class="file-picked-chip" style="display: none;"></div>
             </div>
           </div>
 
@@ -1350,7 +1444,7 @@
               BGM (Optional) & 7% Volume: <span id="newProjMusicVolLabelM2" style="color: var(--cyan); font-weight: 700;">7%</span>
             </label>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="text" id="newProjMusicPathM2" class="form-input" placeholder="path: Demo/bgm.mp3" style="flex: 1;" />
+              <input type="hidden" id="newProjMusicPathM2" />
               <input type="range" id="newProjMusicVolM2" min="0" max="100" value="7" style="width: 90px;" oninput="document.getElementById('newProjMusicVolLabelM2').textContent = this.value + '%'" />
             </div>
           </div>

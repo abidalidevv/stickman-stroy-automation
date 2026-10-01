@@ -1,4 +1,150 @@
 
+// ====================================================================
+// SCRIPT FILE PICKER & AUTO PROMPT/IMAGE ESTIMATION
+// ====================================================================
+function handleScriptFile(input, targetContext) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      if (targetContext === 'm1') {
+        const el = document.getElementById('m1ScriptInput');
+        if (el) el.value = text;
+        updateM1ScriptWordCount();
+      } else if (targetContext === 'modal_m1') {
+        const el = document.getElementById('newProjScript');
+        if (el) el.value = text;
+        updateModalScriptWordCount('m1');
+      } else if (targetContext === 'modal_m2') {
+        const el = document.getElementById('newProjScriptM2');
+        if (el) el.value = text;
+      }
+      const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+      showToast(`Loaded script: ${file.name} (${wordCount} words)`, 'success');
+    };
+    reader.readAsText(file);
+  }
+}
+
+let m1CharBase64 = null;
+
+function handleM1CharFile(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      m1CharBase64 = e.target.result;
+      const thumb = document.getElementById('m1CharThumb');
+      const placeholder = document.getElementById('m1CharPlaceholder');
+      const removeBtn = document.getElementById('m1CharRemoveBtn');
+      const statusText = document.getElementById('m1CharStatusText');
+
+      if (thumb) {
+        thumb.src = e.target.result;
+        thumb.style.display = 'block';
+      }
+      if (placeholder) placeholder.style.display = 'none';
+      if (removeBtn) removeBtn.style.display = 'inline-flex';
+      if (statusText) {
+        statusText.innerHTML = `<strong style="color: var(--emerald);">✅ Character Reference Active:</strong> ${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+      }
+
+      showToast(`Character reference loaded: ${file.name}`, 'success');
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function removeM1CharImage() {
+  m1CharBase64 = null;
+  const thumb = document.getElementById('m1CharThumb');
+  const placeholder = document.getElementById('m1CharPlaceholder');
+  const removeBtn = document.getElementById('m1CharRemoveBtn');
+  const statusText = document.getElementById('m1CharStatusText');
+  const fileInput = document.getElementById('m1CharFile');
+
+  if (thumb) { thumb.src = ''; thumb.style.display = 'none'; }
+  if (placeholder) placeholder.style.display = 'block';
+  if (removeBtn) removeBtn.style.display = 'none';
+  if (statusText) statusText.textContent = 'Pick reference image to lock character appearance across all scenes';
+  if (fileInput) fileInput.value = '';
+
+  showToast('Removed character reference image', 'info');
+}
+
+function removeModalCharImage(tab) {
+  if (tab === 'm1') modalCharBase64_M1 = null;
+  else modalCharBase64_M2 = null;
+
+  const thumb = document.getElementById(tab === 'm1' ? 'newProjCharThumb' : 'newProjCharThumbM2');
+  const placeholder = document.getElementById(tab === 'm1' ? 'newProjCharPlaceholder' : 'newProjCharPlaceholderM2');
+  const removeBtn = document.getElementById(tab === 'm1' ? 'newProjCharRemoveBtn' : 'newProjCharRemoveBtnM2');
+  const statusText = document.getElementById(tab === 'm1' ? 'newProjCharStatusText' : 'newProjCharStatusTextM2');
+  const fileInput = document.getElementById(tab === 'm1' ? 'newProjCharFile' : 'newProjCharFileM2');
+
+  if (thumb) { thumb.src = ''; thumb.style.display = 'none'; }
+  if (placeholder) placeholder.style.display = 'block';
+  if (removeBtn) removeBtn.style.display = 'none';
+  if (statusText) statusText.textContent = 'Pick reference image to lock character appearance across all scenes';
+  if (fileInput) fileInput.value = '';
+
+  showToast('Removed character reference image', 'info');
+}
+
+function handleM2VoiceoverFile(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+
+  const audioObj = new Audio();
+  const objectUrl = URL.createObjectURL(file);
+  audioObj.src = objectUrl;
+  audioObj.onloadedmetadata = () => {
+    const dur = audioObj.duration;
+    URL.revokeObjectURL(objectUrl);
+    if (dur && dur > 0) {
+      const formattedDur = dur.toFixed(1);
+      const durInput = document.getElementById('m2Duration');
+      if (durInput) durInput.value = formattedDur;
+      const badge = document.getElementById('m2DurationBadge');
+      if (badge) {
+        badge.textContent = `${formattedDur}s (Auto-Detected)`;
+        badge.style.color = 'var(--emerald)';
+        badge.style.borderColor = 'var(--emerald)';
+      }
+      updateM2PromptForecast();
+      showToast(`⚡ Audio auto-scanned: ${formattedDur}s`, 'success');
+    }
+  };
+
+  const statusChip = document.getElementById('m2VoiceoverStatus');
+  if (statusChip) {
+    statusChip.textContent = `🎵 ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+    statusChip.style.display = 'inline-flex';
+  }
+  const pathInput = document.getElementById('m2VoiceoverPath');
+  if (pathInput) pathInput.value = file.name;
+}
+
+function updateM2PromptForecast() {
+  const durEl = document.getElementById('m2Duration');
+  const pacingEl = document.getElementById('m2Pacing');
+  if (!durEl || !pacingEl) return;
+  const duration = parseFloat(durEl.value) || 60;
+  const pacing = pacingEl.value || '3/4s';
+  const MULTIPLIERS = { '1/4s': 0.25, '2/4s': 0.50, '3/4s': 0.75, '4/4s': 1.00 };
+  const mult = MULTIPLIERS[pacing] || 0.75;
+  const targetCount = Math.max(1, Math.round(duration * mult));
+
+  const fDur = document.getElementById('m2ForecastDur');
+  const fPacing = document.getElementById('m2ForecastPacing');
+  const fCount = document.getElementById('m2ForecastCount');
+  if (fDur) fDur.textContent = `${duration.toFixed(1)}s`;
+  if (fPacing) fPacing.textContent = `${pacing} (${(1/mult).toFixed(2)}s/img)`;
+  if (fCount) fCount.textContent = `${targetCount} Prompts Expected`;
+}
+
+
 // =============================================
 // CAPTCHA & LOGIN AUDIO VOICE ALERT SYSTEM
 // =============================================
@@ -1120,6 +1266,38 @@ async function onSelectProject(projectId) {
       if (cRef) cRef.value = currentProjectData.character.description || '';
       const cName = document.getElementById('m1CharacterName');
       if (cName) cName.value = currentProjectData.character.character_name || 'Main Stickman';
+      if (currentProjectData.character.image_path) {
+        const thumb = document.getElementById('m1CharThumb');
+        const placeholder = document.getElementById('m1CharPlaceholder');
+        const removeBtn = document.getElementById('m1CharRemoveBtn');
+        const statusText = document.getElementById('m1CharStatusText');
+        if (thumb) {
+          thumb.src = resolveMediaUrl(currentProjectData.character.image_path);
+          thumb.style.display = 'block';
+        }
+        if (placeholder) placeholder.style.display = 'none';
+        if (removeBtn) removeBtn.style.display = 'inline-flex';
+        if (statusText) {
+          statusText.innerHTML = `<strong style="color: var(--emerald);">✅ Character Ref Loaded:</strong> ${currentProjectData.character.character_name || 'Stickman'}`;
+        }
+      }
+    }
+    if (currentProjectData.voiceover_duration) {
+      const dur = parseFloat(currentProjectData.voiceover_duration);
+      const durInput = document.getElementById('m1Duration');
+      if (durInput) durInput.value = dur.toFixed(1);
+      const badge = document.getElementById('m1DurationBadge');
+      if (badge) {
+        badge.textContent = `${dur.toFixed(1)}s (Auto-Detected)`;
+        badge.style.color = 'var(--emerald)';
+      }
+    }
+    if (currentProjectData.voiceover_path) {
+      const statusChip = document.getElementById('m1VoiceoverStatus');
+      if (statusChip) {
+        statusChip.textContent = `🎵 ${currentProjectData.voiceover_path.split(/[\\/]/).pop()}`;
+        statusChip.style.display = 'inline-flex';
+      }
     }
     if (currentProjectData.master_prompt) {
       const mp = document.getElementById('m1MasterPrompt');
@@ -1232,18 +1410,29 @@ function onVoiceoverPathChange(tab) {
 function updateModalPromptCalculation(tab) {
   const durEl = document.getElementById(tab === 'm1' ? 'newProjDuration' : 'newProjDurationM2');
   const pacingEl = document.getElementById(tab === 'm1' ? 'newProjPacing' : 'newProjPacingM2');
-  const targetBadge = document.getElementById('modalTargetPromptsM1');
-
   if (!durEl || !pacingEl) return;
-  const dur = parseFloat(durEl.value) || 0;
-  const pacing = pacingEl.value;
 
+  const duration = parseFloat(durEl.value) || 60;
+  const pacing = pacingEl.value || '3/4s';
   const MULTIPLIERS = { '1/4s': 0.25, '2/4s': 0.50, '3/4s': 0.75, '4/4s': 1.00, '5/4s': 1.25 };
   const mult = MULTIPLIERS[pacing] || 0.75;
-  const count = Math.round(dur * mult);
+  const targetCount = Math.max(1, Math.round(duration * mult));
+  const secPerImg = (1 / mult).toFixed(2);
 
-  if (targetBadge && tab === 'm1') {
-    targetBadge.textContent = count + ' Prompts';
+  if (tab === 'm1') {
+    const fDur = document.getElementById('modalForecastDurM1');
+    const fPacing = document.getElementById('modalForecastPacingM1');
+    const fCount = document.getElementById('modalTargetPromptsM1');
+    if (fDur) fDur.textContent = `${duration.toFixed(1)}s`;
+    if (fPacing) fPacing.textContent = `${pacing} (${secPerImg}s/image)`;
+    if (fCount) fCount.textContent = `${targetCount} Prompts & ${targetCount} Images`;
+  } else {
+    const fDur = document.getElementById('modalForecastDurM2');
+    const fPacing = document.getElementById('modalForecastPacingM2');
+    const fCount = document.getElementById('modalForecastCountM2');
+    if (fDur) fDur.textContent = `${duration.toFixed(1)}s`;
+    if (fPacing) fPacing.textContent = `${pacing} (${secPerImg}s/img)`;
+    if (fCount) fCount.textContent = `${targetCount} Prompts Expected`;
   }
 }
 
@@ -1255,30 +1444,42 @@ function updateModalScriptWordCount(tab) {
 }
 
 function handleModalVoiceoverFile(input, tab) {
-  if (input.files && input.files[0]) {
-    const file = input.files[0];
-    const pathInput = document.getElementById(tab === 'm1' ? 'newProjVoiceoverPath' : 'newProjVoiceoverPathM2');
-    if (pathInput) pathInput.value = file.name;
-    if (tab === 'm1') modalVoiceFile_M1 = file;
-    else modalVoiceFile_M2 = file;
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (tab === 'm1') modalVoiceFile_M1 = file;
+  else modalVoiceFile_M2 = file;
 
-    // Detect duration in browser using Audio context
-    const audio = new Audio();
-    audio.src = URL.createObjectURL(file);
-    audio.onloadedmetadata = () => {
-      if (audio.duration && audio.duration > 0) {
-        const durInput = document.getElementById(tab === 'm1' ? 'newProjDuration' : 'newProjDurationM2');
-        const badge = document.getElementById(tab === 'm1' ? 'newProjDurationBadge' : 'newProjDurationBadgeM2');
-        if (durInput) durInput.value = audio.duration.toFixed(1);
-        if (badge) {
-          badge.textContent = audio.duration.toFixed(1) + 's';
-          badge.style.color = 'var(--emerald)';
-        }
-        updateModalPromptCalculation(tab);
-      }
-    };
-    showToast(`Selected voiceover: ${file.name}`, 'info');
+  const statusId = tab === 'm1' ? 'newProjVoiceoverStatus' : 'newProjVoiceoverStatusM2';
+  const statusChip = document.getElementById(statusId);
+  if (statusChip) {
+    statusChip.textContent = `🎵 ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+    statusChip.style.display = 'inline-flex';
   }
+
+  const pathInput = document.getElementById(tab === 'm1' ? 'newProjVoiceoverPath' : 'newProjVoiceoverPathM2');
+  if (pathInput) pathInput.value = file.name;
+
+  // Instant HTML5 duration probe
+  const audio = new Audio();
+  const objectUrl = URL.createObjectURL(file);
+  audio.src = objectUrl;
+  audio.onloadedmetadata = () => {
+    const dur = audio.duration;
+    URL.revokeObjectURL(objectUrl);
+    if (dur && dur > 0) {
+      const formattedDur = dur.toFixed(1);
+      const durInput = document.getElementById(tab === 'm1' ? 'newProjDuration' : 'newProjDurationM2');
+      const badge = document.getElementById(tab === 'm1' ? 'newProjDurationBadge' : 'newProjDurationBadgeM2');
+      if (durInput) durInput.value = formattedDur;
+      if (badge) {
+        badge.textContent = `${formattedDur}s (Auto-Detected)`;
+        badge.style.color = 'var(--emerald)';
+        badge.style.borderColor = 'var(--emerald)';
+      }
+      updateModalPromptCalculation(tab);
+      showToast(`⚡ Audio auto-scanned: ${formattedDur}s. Pacing forecast ready!`, 'success');
+    }
+  };
 }
 
 function handleModalMusicFile(input, tab) {
@@ -1297,13 +1498,25 @@ function handleModalCharImage(input, tab) {
     const file = input.files[0];
     const reader = new FileReader();
     reader.onload = (e) => {
-      modalCharBase64_M1 = e.target.result;
-      const thumb = document.getElementById('newProjCharThumb');
+      if (tab === 'm1') modalCharBase64_M1 = e.target.result;
+      else modalCharBase64_M2 = e.target.result;
+
+      const thumb = document.getElementById(tab === 'm1' ? 'newProjCharThumb' : 'newProjCharThumbM2');
+      const placeholder = document.getElementById(tab === 'm1' ? 'newProjCharPlaceholder' : 'newProjCharPlaceholderM2');
+      const removeBtn = document.getElementById(tab === 'm1' ? 'newProjCharRemoveBtn' : 'newProjCharRemoveBtnM2');
+      const statusText = document.getElementById(tab === 'm1' ? 'newProjCharStatusText' : 'newProjCharStatusTextM2');
+
       if (thumb) {
         thumb.src = e.target.result;
         thumb.style.display = 'block';
       }
-      showToast('Avatar image loaded', 'success');
+      if (placeholder) placeholder.style.display = 'none';
+      if (removeBtn) removeBtn.style.display = 'inline-flex';
+      if (statusText) {
+        statusText.innerHTML = `<strong style="color: var(--emerald);">✅ Reference Loaded:</strong> ${file.name}`;
+      }
+
+      showToast(`Character reference loaded: ${file.name}`, 'success');
     };
     reader.readAsDataURL(file);
   }
@@ -1488,8 +1701,42 @@ function onM1VoiceoverPathChange() {
 }
 
 function handleM1VoiceoverFile(input) {
-  if (input.files && input.files[0] && activeProjectId) {
-    const file = input.files[0];
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+
+  // Instant HTML5 browser audio duration probe
+  const audioObj = new Audio();
+  const objectUrl = URL.createObjectURL(file);
+  audioObj.src = objectUrl;
+
+  audioObj.onloadedmetadata = () => {
+    const dur = audioObj.duration;
+    URL.revokeObjectURL(objectUrl);
+    if (dur && dur > 0) {
+      const formattedDur = dur.toFixed(1);
+      const durInput = document.getElementById('m1Duration');
+      if (durInput) durInput.value = formattedDur;
+      const badge = document.getElementById('m1DurationBadge');
+      if (badge) {
+        badge.textContent = `${formattedDur}s (Auto-Detected)`;
+        badge.style.color = 'var(--emerald)';
+        badge.style.borderColor = 'var(--emerald)';
+      }
+      updateM1PromptEstimate();
+      showToast(`⚡ Audio auto-scanned: ${formattedDur}s. Pacing forecast updated!`, 'success');
+    }
+  };
+
+  // Update status chip
+  const statusChip = document.getElementById('m1VoiceoverStatus');
+  if (statusChip) {
+    statusChip.textContent = `🎵 ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+    statusChip.style.display = 'inline-flex';
+  }
+  const pathInput = document.getElementById('m1VoiceoverPath');
+  if (pathInput) pathInput.value = file.name;
+
+  if (activeProjectId) {
     const formData = new FormData();
     formData.append('audio', file);
     formData.append('track_type', 'VOICEOVER');
@@ -1500,24 +1747,32 @@ function handleM1VoiceoverFile(input) {
           document.getElementById('m1Duration').value = d.voiceover_duration.toFixed(1);
           document.getElementById('m1DurationBadge').textContent = d.voiceover_duration.toFixed(1) + 's';
           updateM1PromptEstimate();
-          showToast(`Uploaded voiceover: ${d.voiceover_duration.toFixed(1)}s`, 'success');
         }
       })
-      .catch(err => showToast('Error uploading voiceover: ' + err.message, 'error'));
+      .catch(err => console.warn('Background upload note:', err.message));
   }
 }
 
 function handleM1MusicFile(input) {
-  if (input.files && input.files[0] && activeProjectId) {
-    const file = input.files[0];
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const statusChip = document.getElementById('m1MusicStatus');
+  if (statusChip) {
+    statusChip.textContent = `🎵 ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+    statusChip.style.display = 'inline-flex';
+  }
+  const pathInput = document.getElementById('m1MusicPath');
+  if (pathInput) pathInput.value = file.name;
+
+  if (activeProjectId) {
     const formData = new FormData();
     formData.append('audio', file);
     formData.append('track_type', 'MUSIC');
-    formData.append('volume', 0.07);
+    formData.append('volume', (parseFloat(document.getElementById('m1MusicVol')?.value) || 7) / 100);
     fetch(`/api/v1/projects/${activeProjectId}/audio/upload`, { method: 'POST', body: formData })
       .then(r => r.json())
       .then(d => showToast('Background music uploaded', 'success'))
-      .catch(err => showToast('Error uploading music: ' + err.message, 'error'));
+      .catch(err => console.warn('BGM note:', err.message));
   }
 }
 
@@ -1655,17 +1910,31 @@ function updateM1ScriptWordCount() {
 }
 
 function updateM1PromptEstimate() {
-  const custom = parseInt(document.getElementById('m1CustomCount').value);
-  if (custom && custom > 0) {
-    document.getElementById('m1PromptEstimateBadge').textContent = `${custom} prompts (custom override)`;
-    return;
+  const durEl = document.getElementById('m1Duration');
+  const pacingEl = document.getElementById('m1Pacing');
+  const customEl = document.getElementById('m1CustomCount');
+  const badge = document.getElementById('m1PromptEstimateBadge');
+  if (!durEl || !pacingEl) return;
+
+  const duration = parseFloat(durEl.value) || 60;
+  const pacing = pacingEl.value || '3/4s';
+  const custom = customEl ? parseInt(customEl.value) : null;
+  const rates = { '1/4s': 0.25, '2/4s': 0.50, '3/4s': 0.75, '4/4s': 1.00, '5/4s': 1.25 };
+  const rate = rates[pacing] || 0.75;
+  const targetPrompts = (custom && custom > 0) ? custom : Math.max(1, Math.round(duration * rate));
+  const secPerImg = (1 / rate).toFixed(2);
+
+  if (badge) {
+    badge.textContent = (custom && custom > 0) ? `${custom} prompts (override)` : `~${targetPrompts} stickman prompts`;
   }
-  const duration = parseFloat(document.getElementById('m1Duration').value) || 60;
-  const pacing = document.getElementById('m1Pacing').value;
-  const rates = { '1/4s': 0.25, '2/4s': 0.5, '3/4s': 0.75, '4/4s': 1.0, '5/4s': 1.25 };
-  const rate = rates[pacing] || 0.5;
-  const est = Math.max(1, Math.round(duration * rate));
-  document.getElementById('m1PromptEstimateBadge').textContent = `~${est} stickman prompts`;
+
+  // Update Live Audio Forecast Card
+  const fDur = document.getElementById('m1ForecastDur');
+  const fPacing = document.getElementById('m1ForecastPacing');
+  const fCount = document.getElementById('m1ForecastCount');
+  if (fDur) fDur.textContent = `${duration.toFixed(1)}s`;
+  if (fPacing) fPacing.textContent = `${pacing} (${secPerImg}s/image)`;
+  if (fCount) fCount.textContent = `${targetPrompts} Scenes (${targetPrompts} Prompts & ${targetPrompts} Images)`;
 }
 
 async function triggerMode1Generate() {

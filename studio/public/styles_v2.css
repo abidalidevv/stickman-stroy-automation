@@ -1835,3 +1835,118 @@ body {
   text-align: center;
   width: 44px;
 }
+
+
+/* ==================== AUDIO FORECAST & CHAR REF CARDS ==================== */
+.audio-forecast-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 240, 255, 0.04);
+  border: 1px solid rgba(0, 240, 255, 0.22);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  margin-top: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.forecast-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.forecast-title {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.forecast-value {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #fff;
+  font-family: var(--font-mono);
+}
+
+.forecast-item.highlight .forecast-value {
+  color: var(--cyan);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.forecast-arrow {
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.char-ref-picker-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+}
+
+.char-ref-thumb-box {
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  border: 2px dashed rgba(139, 92, 246, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.char-ref-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.char-ref-thumb-placeholder {
+  font-size: 22px;
+  color: rgba(139, 92, 246, 0.6);
+}
+
+.char-ref-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.char-ref-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.char-ref-status {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.file-picked-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: var(--emerald);
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  margin-top: 6px;
+}
