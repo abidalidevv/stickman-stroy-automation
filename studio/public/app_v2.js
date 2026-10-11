@@ -179,7 +179,23 @@ function triggerWorkerVoiceAlert(workerId, reason = 'Captcha needed') {
 // FLEET CALCULATOR & BATCH SCHEDULER
 // =============================================
 async function loadFleetCalculation() {
-  if (!activeProjectId) return;
+  const elP = document.getElementById('fleetTotalPrompts');
+  const elW = document.getElementById('fleetTotalWorkers');
+  const elM = document.getElementById('fleetMetaWorkers');
+  const elF = document.getElementById('fleetFlowWorkers');
+  const elA = document.getElementById('fleetActiveQueued');
+  const elExp = document.getElementById('fleetFormulaExplanation');
+
+  if (!activeProjectId) {
+    if (elP) elP.textContent = '0';
+    if (elW) elW.textContent = '0';
+    if (elM) elM.textContent = '0';
+    if (elF) elF.textContent = '0';
+    if (elA) elA.textContent = '0 / 0';
+    if (elExp) elExp.textContent = 'Select or create a project first.';
+    return;
+  }
+
   try {
     const res = await fetch(`/api/v1/projects/${activeProjectId}/workers/calculate-fleet`, {
       method: 'POST',
@@ -189,23 +205,17 @@ async function loadFleetCalculation() {
     const data = await res.json();
     if (!data.success) return;
 
-    document.getElementById('calcTotalPrompts').textContent = data.total_prompts;
-    document.getElementById('calcWorkersNeeded').textContent = data.total_workers_needed;
-    document.getElementById('calcProviderSplit').textContent = `${data.meta_workers} Meta + ${data.flow_workers} Flow`;
-    document.getElementById('calcConcurrencyPlan').textContent = data.total_batches > 1 
-      ? `${data.active_now_batch_1} Active / ${data.queued_for_recycle} Queued (${data.total_batches} Batches)`
-      : `All ${data.total_workers_needed} Active in Batch 1`;
-
-    const container = document.getElementById('fleetBatchesContainer');
-    if (container && data.total_batches > 1) {
-      container.style.display = 'block';
-      container.innerHTML = `
-        <div style="font-weight: 700; color: var(--cyan); margin-bottom: 6px;">Batch Execution Queue:</div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <div class="badge badge-emerald">Batch 1: 10 Workers (Prompts 1 - 500) Active Immediate</div>
-          <div class="badge badge-amber">Batch 2: ${data.total_workers_needed - 10} Workers (Recycled W01..W${String(data.total_workers_needed - 10).padStart(2,'0')})</div>
-        </div>
-      `;
+    if (elP) elP.textContent = data.total_prompts;
+    if (elW) elW.textContent = data.total_workers_needed;
+    if (elM) elM.textContent = data.meta_workers;
+    if (elF) elF.textContent = data.flow_workers;
+    if (elA) elA.textContent = `${data.active_now_batch_1} Active / ${data.queued_for_recycle} Queued`;
+    if (elExp) {
+      if (data.total_prompts === 0) {
+        elExp.textContent = 'Project prompt queue is currently empty. Go to Step 1 to import or generate prompts.';
+      } else {
+        elExp.textContent = `${data.total_prompts} Prompts → ${data.total_workers_needed} Workers (${data.meta_workers} Meta + ${data.flow_workers} Flow). ${data.total_batches > 1 ? data.total_batches + ' Batches' : '1 Batch (Max 10 concurrent)'}.`;
+      }
     }
   } catch (err) {
     console.warn('loadFleetCalculation error:', err);
@@ -227,9 +237,9 @@ async function calculateAndDispatchFleet() {
     const data = await res.json();
     if (data.success) {
       showToast(data.message, 'success');
-      await loadWorkersStatus();
-      await loadWorkersProcesses();
-      await loadFleetCalculation();
+      if (typeof refreshWorkers === 'function') await refreshWorkers();
+      if (typeof refreshFleetStatus === 'function') await refreshFleetStatus();
+      if (typeof loadFleetCalculation === 'function') await loadFleetCalculation();
     } else {
       showToast(data.error || 'Failed to dispatch fleet', 'error');
     }
@@ -245,35 +255,119 @@ async function refreshFleetStatus() {
   try {
     const res = await fetch('/api/v1/workers/fleet-status');
     const data = await res.json();
-    const grid = document.getElementById('workersFleetStatusGrid');
-    if (!grid || !data.workers) return;
+    if (!data.workers) return;
 
-    grid.innerHTML = data.workers.map(w => {
-      const isAuth = w.authenticated;
-      const statusBadge = isAuth 
-        ? '<span class="badge badge-emerald" style="font-size: 10px;">✓ Session Saved</span>'
-        : '<span class="badge badge-amber" style="font-size: 10px;">⏳ Setup Required</span>';
+    // 1. Update Step 6 Login Assistant Grid
+    const assistantGrid = document.getElementById('workersLoginAssistantGrid');
+    if (assistantGrid) {
+      assistantGrid.innerHTML = data.workers.map(w => {
+        const isAuth = w.authenticated;
+        const isRunning = w.is_running;
+        const isFlow = (w.provider || '').toLowerCase() === 'flow';
+        const providerBadge = isFlow 
+          ? '<span class="badge" style="background: rgba(0,240,255,0.15); color: var(--cyan); border: 1px solid rgba(0,240,255,0.3); font-size: 10px; font-weight: 800;">⚡ FLOW</span>'
+          : '<span class="badge" style="background: rgba(139,92,246,0.15); color: var(--violet); border: 1px solid rgba(139,92,246,0.3); font-size: 10px; font-weight: 800;">🌐 META</span>';
+        
+        const statusBadge = isRunning
+          ? `<span style="color: #60a5fa; font-size: 10px; font-weight: 700;">🔵 Running (PID ${w.pid || ''})</span>`
+          : (isAuth 
+            ? '<span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>'
+            : '<span style="color: var(--amber); font-size: 10px; font-weight: 700;">🟡 Needs Login</span>');
 
-      return `
-        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-family: var(--font-mono); font-weight: 700; color: #fff;">${w.id}</span>
-            <span class="badge badge-cyan" style="font-size: 10px;">${w.provider.toUpperCase()}</span>
+        const otherProv = isFlow ? 'meta' : 'flow';
+
+        return `
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">${w.id}</span>
+              ${providerBadge}
+            </div>
+            <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+              ${statusBadge}
+              <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('${w.id}', '${w.provider}')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                ⇄ ${otherProv.toUpperCase()}
+              </button>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('${w.id}', '${w.provider}')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+              🚀 Open ${isFlow ? 'Flow' : 'Meta'} Login
+            </button>
           </div>
-          <div style="margin-bottom: 8px;">${statusBadge}</div>
-          <button class="btn btn-secondary" onclick="openWorkerLogin('${w.id}', '${w.provider}')" style="width: 100%; padding: 4px 8px; font-size: 11px;">
-            🔑 Open Login
-          </button>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
+    }
+
+    // 2. Update Step 2 Fleet Status Grid if present
+    const fleetGrid = document.getElementById('workersFleetStatusGrid');
+    if (fleetGrid) {
+      fleetGrid.innerHTML = data.workers.map(w => {
+        const isAuth = w.authenticated;
+        const statusBadge = isAuth 
+          ? '<span class="badge badge-emerald" style="font-size: 10px;">Session Saved</span>'
+          : '<span class="badge badge-amber" style="font-size: 10px;">Setup Required</span>';
+
+        return `
+          <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-family: var(--font-mono); font-weight: 700; color: #fff;">${w.id}</span>
+              <span class="badge badge-cyan" style="font-size: 10px;">${w.provider.toUpperCase()}</span>
+            </div>
+            <div style="margin-bottom: 8px;">${statusBadge}</div>
+            <button class="btn btn-secondary" onclick="openWorkerLogin('${w.id}', '${w.provider}')" style="width: 100%; padding: 4px 8px; font-size: 11px;">
+              Open Login
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
   } catch (err) {
     console.warn('refreshFleetStatus error:', err);
   }
 }
 
+async function toggleWorkerProvider(workerId, currentProvider) {
+  const newProv = (currentProvider || '').toLowerCase() === 'flow' ? 'meta' : 'flow';
+  showToast(`Switching ${workerId} to ${newProv.toUpperCase()}...`, 'info');
+  try {
+    const res = await fetch(`/api/v1/workers/${workerId}/provider`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: newProv })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Worker ${workerId} is now assigned to ${newProv.toUpperCase()}!`, 'success');
+      refreshFleetStatus();
+    } else {
+      showToast(data.error || 'Failed to update provider', 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
 async function openWorkerLogin(workerId, provider) {
-  showToast(`Opening 1-time login browser for ${workerId} (${provider})...`, 'info');
+  if (workerId === 'ALL') {
+    showToast('🚀 Launching all 10 worker profiles (1 worker = 1 extension)... Please log in once in each window!', 'info');
+    try {
+      const res = await fetch('/api/v1/workers/login-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ worker_id: 'ALL' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message, 'success');
+        setTimeout(refreshFleetStatus, 3000);
+      } else {
+        showToast(data.error || 'Failed launching worker profiles', 'error');
+      }
+    } catch (err) {
+      showToast(`Error: ${err.message}`, 'error');
+    }
+    return;
+  }
+
+  showToast(`Opening dedicated browser for ${workerId} (${(provider || '').toUpperCase()})...`, 'info');
   try {
     const res = await fetch('/api/v1/workers/login-assistant', {
       method: 'POST',
@@ -283,7 +377,7 @@ async function openWorkerLogin(workerId, provider) {
     const data = await res.json();
     if (data.success) {
       showToast(data.message, 'success');
-      setTimeout(refreshFleetStatus, 4000);
+      setTimeout(refreshFleetStatus, 2500);
     } else {
       showToast(data.error || 'Failed to open login window', 'error');
     }
@@ -812,7 +906,7 @@ function renderCapCutTimeline() {
     const isActive = idx === currentSceneIndex;
     const dur = (parseFloat(item.duration) || 1.33).toFixed(2);
     const rawImg = item.image_path || item.file_path || item.image_url;
-    const imgSrc = rawImg ? resolveMediaUrl(rawImg) : 'data:image/svg+xml,<svg xmlns=http://www.w3.org/2000/svg viewBox=0 0 100 60><rect width=100 height=60 fill=%231a1a2e/><text y=32 x=50 text-anchor=middle fill=%23f59e0b font-size=8>Missing Image</text></svg>';
+    const imgSrc = rawImg ? resolveMediaUrl(rawImg, item) : 'data:image/svg+xml,<svg xmlns=http://www.w3.org/2000/svg viewBox=0 0 100 60><rect width=100 height=60 fill=%231a1a2e/><text y=32 x=50 text-anchor=middle fill=%23f59e0b font-size=8>Missing Image</text></svg>';
     const isMissing = !rawImg || item.is_missing;
 
     return `
@@ -995,14 +1089,34 @@ async function saveTimelineChanges() {
 }
 
 
-function resolveMediaUrl(filePath) {
+function resolveMediaUrl(filePath, context = null) {
+  const pId = activeProjectId || (currentProjectData && currentProjectData.id);
+
+  // If a scene or prompt object with index is provided, use prompt image API directly
+  if (context && (context.prompt_index || context.order_index) && pId) {
+    const pIdx = context.prompt_index || context.order_index;
+    return `/api/v1/projects/${pId}/prompts/${pIdx}/image?v=${encodeURIComponent(context.file_name || context.updated_at || Date.now())}`;
+  }
+
   if (!filePath) return '';
   if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('data:')) return filePath;
+
   const normalized = filePath.replace(/\\/g, '/');
-  const projIdx = normalized.indexOf('/Projects/');
+  const baseName = normalized.split('/').pop() || '';
+
+  // If filename starts with 001_ or similar prompt number, map directly to prompt image API
+  const pMatch = baseName.match(/^(\d{1,4})_/);
+  if (pMatch && pId) {
+    const pIdx = parseInt(pMatch[1], 10);
+    return `/api/v1/projects/${pId}/prompts/${pIdx}/image?v=${encodeURIComponent(baseName)}`;
+  }
+
+  // Case-insensitive /projects/ extraction
+  const projIdx = normalized.toLowerCase().indexOf('/projects/');
   if (projIdx !== -1) {
     return '/projects-media/' + normalized.substring(projIdx + 10);
   }
+
   const folderName = currentProjectData?.directory_path ? currentProjectData.directory_path.replace(/\\/g, '/').split('/').pop() : currentProjectData?.name;
   return `/projects-media/${folderName}/${filePath.replace(/^\/+/, '')}`;
 }
@@ -1010,23 +1124,30 @@ function resolveMediaUrl(filePath) {
 
 // Step 1 Sub-Tab Switcher
 function switchStep1SubTab(tab) {
-  document.getElementById('subTabMode1').classList.remove('active');
-  document.getElementById('subTabMode2').classList.remove('active');
-  document.getElementById('subTabPromptsQueue').classList.remove('active');
+  const t1 = document.getElementById('subTabMode1');
+  const t2 = document.getElementById('subTabMode2');
+  const tQ = document.getElementById('subTabPromptsQueue');
+  const v1 = document.getElementById('subViewMode1');
+  const v2 = document.getElementById('subViewMode2');
+  const vQ = document.getElementById('subViewQueue');
 
-  document.getElementById('subViewMode1').style.display = 'none';
-  document.getElementById('subViewMode2').style.display = 'none';
-  document.getElementById('subViewQueue').style.display = 'none';
+  if (t1) t1.classList.remove('active');
+  if (t2) t2.classList.remove('active');
+  if (tQ) tQ.classList.remove('active');
+
+  if (v1) v1.style.display = 'none';
+  if (v2) v2.style.display = 'none';
+  if (vQ) vQ.style.display = 'none';
 
   if (tab === 'mode1') {
-    document.getElementById('subTabMode1').classList.add('active');
-    document.getElementById('subViewMode1').style.display = 'block';
+    if (t1) t1.classList.add('active');
+    if (v1) v1.style.display = 'block';
   } else if (tab === 'mode2') {
-    document.getElementById('subTabMode2').classList.add('active');
-    document.getElementById('subViewMode2').style.display = 'block';
+    if (t2) t2.classList.add('active');
+    if (v2) v2.style.display = 'block';
   } else if (tab === 'queue') {
-    document.getElementById('subTabPromptsQueue').classList.add('active');
-    document.getElementById('subViewQueue').style.display = 'block';
+    if (tQ) tQ.classList.add('active');
+    if (vQ) vQ.style.display = 'block';
     loadProjectPrompts();
   }
 }
@@ -1069,6 +1190,8 @@ async function initApp() {
   startHardwarePolling();
   loadAiModels();
   loadDefaultMasterPrompt();
+  loadSettings();
+  refreshFleetStatus();
 }
 
 function setupKeyboardShortcuts() {
@@ -1126,11 +1249,11 @@ function goToStep(stepNum) {
 
   // Refresh step-specific data
   if (stepNum === 1) loadProjectPrompts();
-  if (stepNum === 2) refreshWorkers();
+  if (stepNum === 2) { refreshWorkers(); loadFleetCalculation(); }
   if (stepNum === 3) loadProjectGallery();
-  if (stepNum === 4) loadTimeline();
+  if (stepNum === 4) { loadTimeline(); if (typeof switchToolsTab === 'function') switchToolsTab('captions'); }
   if (stepNum === 5) loadRenderHistory();
-  if (stepNum === 6) { fetchLogs(); loadSettings(); }
+  if (stepNum === 6) { fetchLogs(); loadSettings(); refreshFleetStatus(); }
 }
 
 // =============================================
@@ -1330,7 +1453,7 @@ function openNewProjectModal() {
   const modal = document.getElementById('newProjectModal');
   if (!modal) return;
   modal.style.display = 'flex';
-  switchNewProjectModalTab('MODE_1');
+  switchNewProjectModalTab('MODE_2');
 
   // Pre-load default master prompt if available
   const mpArea = document.getElementById('newProjMasterPrompt');
@@ -1522,6 +1645,53 @@ function handleModalCharImage(input, tab) {
   }
 }
 
+let step1M1CharBase64 = null;
+
+function handleStep1M1CharImage(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      step1M1CharBase64 = e.target.result;
+      const thumb = document.getElementById('step1M1CharThumb');
+      const placeholder = document.getElementById('step1M1CharPlaceholder');
+      const removeBtn = document.getElementById('step1M1CharRemoveBtn');
+      const statusText = document.getElementById('step1M1CharStatusText');
+
+      if (thumb) {
+        thumb.src = e.target.result;
+        thumb.style.display = 'block';
+      }
+      if (placeholder) placeholder.style.display = 'none';
+      if (removeBtn) removeBtn.style.display = 'inline-flex';
+      if (statusText) {
+        statusText.innerHTML = `<strong style="color: var(--emerald);">✓ Reference Loaded:</strong> ${file.name}`;
+      }
+      showToast(`Character reference loaded: ${file.name}`, 'success');
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function removeStep1M1CharImage() {
+  step1M1CharBase64 = null;
+  const fileInput = document.getElementById('step1M1CharFile');
+  if (fileInput) fileInput.value = '';
+  const thumb = document.getElementById('step1M1CharThumb');
+  const placeholder = document.getElementById('step1M1CharPlaceholder');
+  const removeBtn = document.getElementById('step1M1CharRemoveBtn');
+  const statusText = document.getElementById('step1M1CharStatusText');
+
+  if (thumb) {
+    thumb.src = '';
+    thumb.style.display = 'none';
+  }
+  if (placeholder) placeholder.style.display = 'flex';
+  if (removeBtn) removeBtn.style.display = 'none';
+  if (statusText) statusText.textContent = 'Pick reference image to lock character appearance across all scenes';
+  showToast('Character reference removed', 'info');
+}
+
 function handleModalPromptFile(input) {
   if (input.files && input.files[0]) {
     const file = input.files[0];
@@ -1610,7 +1780,8 @@ async function submitNewProject() {
       music_path: music_path || (modalMusicFile_M2 ? modalMusicFile_M2.name : null),
       music_volume: music_vol,
       character_name: char_name,
-      character_description: char_desc
+      character_description: char_desc,
+      character_image_base64: modalCharBase64_M2
     };
   }
 
@@ -1714,16 +1885,18 @@ function handleM1VoiceoverFile(input) {
     URL.revokeObjectURL(objectUrl);
     if (dur && dur > 0) {
       const formattedDur = dur.toFixed(1);
+      const mins = Math.floor(dur / 60);
+      const secs = Math.round(dur % 60);
       const durInput = document.getElementById('m1Duration');
       if (durInput) durInput.value = formattedDur;
       const badge = document.getElementById('m1DurationBadge');
       if (badge) {
-        badge.textContent = `${formattedDur}s (Auto-Detected)`;
+        badge.textContent = mins > 0 ? `${formattedDur}s (${mins}m ${secs}s)` : `${formattedDur}s`;
         badge.style.color = 'var(--emerald)';
-        badge.style.borderColor = 'var(--emerald)';
+        badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
       }
       updateM1PromptEstimate();
-      showToast(`⚡ Audio auto-scanned: ${formattedDur}s. Pacing forecast updated!`, 'success');
+      showToast(`🎵 Audio scanned: ${formattedDur}s (${mins}m ${secs}s). Forecast updated!`, 'success');
     }
   };
 
@@ -1849,12 +2022,120 @@ function handleM2FileUpload(input) {
   }
 }
 
+
+function cleanPromptText(raw) {
+  let str = String(raw || '').trim();
+  str = str.replace(/^(?:(?:scene|prompt|image|panel|shot|frame)?\s*\[?#?(\d+)\]?[\s_.:\-)\]]+)/i, '').trim();
+  str = str.replace(/^[\"\'\*\-•\s]+|[\"\'\s]+$/g, '').trim();
+  return str;
+}
+
+function smartUniversalPromptExtractor(rawInput) {
+  if (!rawInput) return [];
+  if (Array.isArray(rawInput)) {
+    return rawInput.map(x => cleanPromptText(x)).filter(Boolean);
+  }
+
+  const text = String(rawInput || '').trim();
+  if (!text) return [];
+
+  // Strategy 1: JSON Array or Object
+  if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        const results = [];
+        for (const item of parsed) {
+          if (typeof item === 'string' && item.trim()) {
+            results.push(cleanPromptText(item));
+          } else if (item && typeof item === 'object') {
+            const val = item.prompt || item.text || item.prompt_text || item.fullLine || item.description;
+            if (val) results.push(cleanPromptText(String(val)));
+          }
+        }
+        if (results.length > 0) return results;
+      } else if (parsed && typeof parsed === 'object') {
+        const arr = parsed.prompts || parsed.data || parsed.images || parsed.items;
+        if (Array.isArray(arr)) {
+          return smartUniversalPromptExtractor(JSON.stringify(arr));
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Strategy 2: Explicit Structured Prompt Pack (Style 2: **PROMPT 001**, ### Prompt 1, Image 001:, etc.)
+  const promptMarkerPattern = /(?:^|\n)[#*_\s]*\b(?:PROMPT|IMAGE|SCENE|PANEL|FRAME)\s*#?\[?(\d+)\]?[*_\s]*[:\-—]?\s*\n+/i;
+  const parts = text.split(promptMarkerPattern);
+  if (parts.length >= 3) {
+    const extracted = [];
+    for (let i = 1; i < parts.length; i += 2) {
+      const num = parseInt(parts[i], 10);
+      let body = (parts[i + 1] || '').trim();
+      body = body.split(/\n+(?:###|\*\*Visual Group|\#\#)/i)[0].trim();
+      body = cleanPromptText(body);
+      if (body && body.length > 5) {
+        extracted.push({ num, body });
+      }
+    }
+    if (extracted.length > 0) {
+      extracted.sort((a, b) => a.num - b.num);
+      return extracted.map(e => e.body);
+    }
+  }
+
+  function isDocumentMeta(str) {
+    const s = str.trim();
+    if (!s) return true;
+    if (/^[-=_*~]{3,}$/.test(s)) return true;
+    if (/^(?:#+\s*|\*\*)\s*(?:Stickman|YouTube|Production Specifications|Specification|Character & Visual Consistency|Consistency Rules|Visual Group|\d+\s*Image Prompts)/i.test(s)) return true;
+    if (/^-\s*(?:Voiceover duration|Pacing|Total required|Image duration|Structure|Same core|Keep line|Ancient|No photorealistic|Every frame|Prefer clear)/i.test(s)) return true;
+    return false;
+  }
+
+  // Strategy 3: Paragraph-separated blocks
+  const paragraphs = text.split(/\r?\n\s*\r?\n/).map(p => p.trim()).filter(Boolean);
+  if (paragraphs.length > 1) {
+    const validParagraphs = [];
+    for (const p of paragraphs) {
+      if (isDocumentMeta(p)) continue;
+      const clean = cleanPromptText(p);
+      if (clean && clean.length > 15) {
+        validParagraphs.push(clean);
+      }
+    }
+    if (validParagraphs.length >= 2) {
+      return validParagraphs;
+    }
+  }
+
+  // Strategy 4: Line by line
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const validLines = [];
+  for (const line of lines) {
+    if (isDocumentMeta(line)) continue;
+    const clean = cleanPromptText(line);
+    if (clean && clean.length > 5) {
+      validLines.push(clean);
+    }
+  }
+  return validLines;
+}
+
 function updateM2PromptCount() {
   const area = document.getElementById('rawPromptsInput');
   const badge = document.getElementById('m2PromptCountBadge');
   if (!area || !badge) return;
-  const lines = area.value.split(/\r?\n/).filter(l => l.trim().length > 0);
-  badge.textContent = `${lines.length} prompts`;
+  const detected = smartUniversalPromptExtractor(area.value);
+  badge.textContent = `${detected.length} prompts detected`;
+  if (detected.length > 0) {
+    badge.style.background = 'rgba(16, 185, 129, 0.2)';
+    badge.style.color = '#10b981';
+    badge.style.borderColor = '#10b981';
+  } else {
+    badge.style.background = '';
+    badge.style.color = '';
+    badge.style.borderColor = '';
+  }
 }
 
 function recenterCaptions() {
@@ -1917,12 +2198,16 @@ function updateM1PromptEstimate() {
   if (!durEl || !pacingEl) return;
 
   const duration = parseFloat(durEl.value) || 60;
-  const pacing = pacingEl.value || '3/4s';
+  const pacing = pacingEl.value || 'Random';
   const custom = customEl ? parseInt(customEl.value) : null;
-  const rates = { '1/4s': 0.25, '2/4s': 0.50, '3/4s': 0.75, '4/4s': 1.00, '5/4s': 1.25 };
-  const rate = rates[pacing] || 0.75;
+  const rates = { 'Random': 0.50, '1/4s': 0.25, '2/4s': 0.50, '3/4s': 0.75, '4/4s': 1.00, '5/4s': 1.25 };
+  const rate = rates[pacing] || 0.50;
   const targetPrompts = (custom && custom > 0) ? custom : Math.max(1, Math.round(duration * rate));
-  const secPerImg = (1 / rate).toFixed(2);
+
+  let pacingRuleText = `${pacing} (${(1 / rate).toFixed(2)}s/image)`;
+  if (pacing === 'Random') {
+    pacingRuleText = '🎲 Dynamic Anti-Template (~2.00s/img)';
+  }
 
   if (badge) {
     badge.textContent = (custom && custom > 0) ? `${custom} prompts (override)` : `~${targetPrompts} stickman prompts`;
@@ -1932,8 +2217,11 @@ function updateM1PromptEstimate() {
   const fDur = document.getElementById('m1ForecastDur');
   const fPacing = document.getElementById('m1ForecastPacing');
   const fCount = document.getElementById('m1ForecastCount');
-  if (fDur) fDur.textContent = `${duration.toFixed(1)}s`;
-  if (fPacing) fPacing.textContent = `${pacing} (${secPerImg}s/image)`;
+  const mins = Math.floor(duration / 60);
+  const secs = Math.round(duration % 60);
+  const durTimeStr = mins > 0 ? `${duration.toFixed(1)}s (${mins}m ${secs}s)` : `${duration.toFixed(1)}s`;
+  if (fDur) fDur.textContent = durTimeStr;
+  if (fPacing) fPacing.textContent = pacingRuleText;
   if (fCount) fCount.textContent = `${targetPrompts} Scenes (${targetPrompts} Prompts & ${targetPrompts} Images)`;
 }
 
@@ -1998,6 +2286,27 @@ async function triggerMode1Generate() {
       document.getElementById('m1BibleSetting').textContent = result.story_bible.setting || 'Obsidian void / minimalist background';
     }
 
+    // Render into Output Canvas
+    const canvasBox = document.getElementById('m1OutputCanvasBox');
+    const canvasText = document.getElementById('m1OutputCanvasText');
+    const canvasCountBadge = document.getElementById('m1CanvasCountBadge');
+    
+    let rawText = result.raw_prompts_text || '';
+    if (!rawText && result.prompts && Array.isArray(result.prompts)) {
+      rawText = result.prompts.map(p => {
+        let t = p.prompt_text || p.prompt || '';
+        const numStr = String(p.index || p.id_str).padStart(3, '0');
+        return t.startsWith(`${numStr}_`) ? t : `${numStr}_${t}`;
+      }).join('\n');
+    }
+
+    if (canvasBox && canvasText) {
+      canvasText.value = rawText;
+      if (canvasCountBadge) canvasCountBadge.textContent = `${result.generated_count || result.prompts?.length || 0} Scenes`;
+      canvasBox.style.display = 'block';
+      canvasBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
     await loadProjectPrompts();
     onSelectProject(activeProjectId);
   } catch (err) {
@@ -2050,7 +2359,8 @@ async function loadProjectPrompts() {
     const container = document.getElementById('promptListContainer');
     if (!container) return;
 
-    document.getElementById('promptsCountBadge').textContent = `${prompts.length} Prompts`;
+    const pBadge = document.getElementById('promptsCountBadge'); if (pBadge) pBadge.textContent = `${prompts.length} Prompts`;
+    loadFleetCalculation();
     if (document.getElementById('promptsSubTabCount')) {
       document.getElementById('promptsSubTabCount').textContent = prompts.length;
     }
@@ -2310,7 +2620,7 @@ async function loadProjectGallery() {
     }
 
     gallery.innerHTML = completed.map(p => {
-      const imgUrl = resolveMediaUrl(p.file_path || p.image_path);
+      const imgUrl = resolveMediaUrl(p.file_path || p.image_path, p);
       return `
         <div class="image-card">
           <div class="image-thumbnail-wrap" onclick="openLightbox('${imgUrl}', '${p.prompt_id_str}', '${encodeURIComponent(p.prompt_text)}')">
@@ -2443,7 +2753,7 @@ function updatePlaybackScene(idx) {
   const captionEl = document.getElementById('playerCaptionOverlay');
 
   if (scene.image_path) {
-    imgEl.src = resolveMediaUrl(scene.image_path || scene.file_path);
+    imgEl.src = resolveMediaUrl(scene.image_path || scene.file_path, scene);
   } else {
     imgEl.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><rect width="100" height="60" fill="%230a0d16"/><text y="32" x="50" text-anchor="middle" fill="%2300f0ff" font-size="6">Stickman Scene Ready</text></svg>';
   }
@@ -2456,6 +2766,17 @@ function updatePlaybackScene(idx) {
 
   badgeEl.textContent = `SCENE ${scene.prompt_id_str || (idx + 1)}`;
   captionEl.textContent = scene.prompt_text || scene.label || `Stickman scene ${idx + 1}`;
+
+  // Apply Atmospheric look & Media Inspector sync
+  if (typeof applyAtmosphericEffectToCanvas === 'function') {
+    applyAtmosphericEffectToCanvas();
+  }
+  if (typeof updateMediaInspector === 'function') {
+    updateMediaInspector();
+  }
+  if (scene.sfx && isPlaying && typeof playSfx === 'function') {
+    playSfx(scene.sfx);
+  }
 
   // Highlight active scene card in Director Grid
   document.querySelectorAll('.scene-director-card').forEach((c, i) => {
@@ -2553,7 +2874,7 @@ function renderSceneDirectorCards() {
   }
 
   grid.innerHTML = timelineItems.map((scene, idx) => {
-    const thumbUrl = resolveMediaUrl(scene.image_path || scene.file_path);
+    const thumbUrl = resolveMediaUrl(scene.image_path || scene.file_path, scene);
     const dur = (scene.duration || (scene.end_time - scene.start_time) || 3.0).toFixed(1);
 
     return `
@@ -2664,101 +2985,94 @@ async function triggerRender() {
     return;
   }
 
-  const fps = parseInt(document.getElementById('renderFps').value) || 30;
-  const resolution = document.getElementById('renderResolution').value || '1920x1080';
-  const motion = document.getElementById('renderMotionToggle').checked;
+  const resolution = document.getElementById('renderResolution')?.value || '1920x1080';
+  const fps = parseInt(document.getElementById('renderFps')?.value, 10) || 60;
+  const speedPreset = document.getElementById('renderSpeedPreset')?.value || 'veryfast';
+  const crf = document.getElementById('renderCrf')?.value || (resolution.startsWith('3840') ? '18' : '20');
+  const audioBitrate = document.getElementById('renderAudioBitrate')?.value || '320k';
+  const motion = document.getElementById('renderMotionToggle')?.checked !== false;
+  const hwaccel = document.getElementById('renderHwaccelToggle')?.checked !== false;
 
   const btn = document.getElementById('btnStartRender');
   const box = document.getElementById('renderStatusCard');
+  const bar = document.getElementById('renderBar');
+  const statusText = document.getElementById('renderProgressText');
+  const pctText = document.getElementById('renderProgressPct');
+  const actionsRow = document.getElementById('renderCompletionActions');
+
   btn.disabled = true;
   box.style.display = 'block';
+  if (actionsRow) actionsRow.style.display = 'none';
 
-  document.getElementById('renderProgressText').textContent = 'Encoding 1080p MP4 with FFmpeg...';
-  document.getElementById('renderBar').style.width = '20%';
+  statusText.textContent = `Encoding ${resolution} @ ${fps} FPS via FFmpeg (${speedPreset})...`;
+  bar.style.width = '25%';
+  if (pctText) pctText.textContent = '25%';
 
   try {
-    const isPortrait = (resolution === '1080x1920');
+    const isPortrait = resolution.includes('1080x1920') || resolution.includes('2160x3840');
     const aspectRatio = isPortrait ? '9:16' : '16:9';
-    document.getElementById('renderProgressText').textContent = 'Rendering 1080p Master Video via FFmpeg...';
-    
+
     const res = await fetch(`/api/v1/projects/${activeProjectId}/render`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        fps: parseInt(fps, 10) || 30,
+        fps,
         resolution,
         aspect_ratio: aspectRatio,
+        speed_preset: speedPreset,
+        crf,
+        audio_bitrate: audioBitrate,
+        enable_hwaccel: hwaccel,
         motion_enabled: motion,
         include_music: true,
         include_sfx: true,
-        music_volume: 0.07
+        music_volume: window.renderMusicVolume !== undefined ? window.renderMusicVolume : 0.07,
+        effects_preset: window.activeAtmosphericEffect || 'normal',
+        vignette_enabled: document.getElementById('fxVignetteToggle')?.checked || false,
+        blur_amount: parseFloat(document.getElementById('fxBlurSlider')?.value) || 0,
+        sharpen_enabled: document.getElementById('fxSharpenToggle')?.checked || false,
+        grain_enabled: document.getElementById('fxGrainToggle')?.checked || false,
+        transition_type: window.activeTransitionPreset || 'cross_dissolve'
       })
     });
+
+    bar.style.width = '75%';
+    if (pctText) pctText.textContent = '75%';
+
     const data = await res.json();
     if (data.output_path || data.success) {
-      document.getElementById('renderBar').style.width = '100%';
-      document.getElementById('renderProgressText').textContent = '✓ Render Complete!';
-      btn.disabled = false;
-      showToast('1080p Video Render Complete!', 'success');
+      bar.style.width = '100%';
+      if (pctText) pctText.textContent = '100%';
+      statusText.textContent = `✓ Export Complete! (${resolution} @ ${fps}fps H.264 MP4 Saved)`;
+      showToast('Render Complete! Video saved to project renders folder.', 'success');
+
+      const videoUrl = resolveMediaUrl(data.output_path || (data.result && data.result.outputPath));
       
-      const playerWrap = document.getElementById('renderPlayerWrap');
-      const video = document.getElementById('renderedVideoPlayer');
-      video.src = resolveMediaUrl(data.output_path);
-      playerWrap.style.display = 'block';
-      loadRenderHistory();
-    } else if (data.render_id) {
-      showToast('Render in progress...', 'info');
-      pollRender(data.render_id);
+      // Update completion actions
+      if (actionsRow) actionsRow.style.display = 'flex';
+      const dlBtn = document.getElementById('btnDownloadRender');
+      if (dlBtn && videoUrl) dlBtn.href = videoUrl;
+
+      // Play video in in-page Master Player
+      if (videoUrl) {
+        playRenderVideo(videoUrl);
+      }
+
+      await loadRenderHistory();
     } else {
+      bar.style.width = '100%';
+      bar.style.background = '#ef4444';
+      statusText.textContent = `Render failed: ${data.error || 'Unknown error'}`;
       showToast(data.error || 'Render failed', 'error');
-      btn.disabled = false;
     }
   } catch (err) {
+    bar.style.width = '100%';
+    bar.style.background = '#ef4444';
+    statusText.textContent = `Error: ${err.message}`;
     showToast(`Render failed: ${err.message}`, 'error');
+  } finally {
     btn.disabled = false;
   }
-}
-
-function pollRender(renderId) {
-  let attempts = 0;
-  if (renderPollInterval) clearInterval(renderPollInterval);
-
-  renderPollInterval = setInterval(async () => {
-    attempts++;
-    try {
-      const res = await fetch(`/api/v1/projects/${activeProjectId}/renders`);
-      const renders = await res.json();
-      const current = renders.find(r => r.id === renderId);
-
-      if (current) {
-        document.getElementById('renderBar').style.width = `${Math.min(20 + attempts * 8, 95)}%`;
-
-        if (current.status === 'COMPLETED') {
-          clearInterval(renderPollInterval);
-          document.getElementById('renderBar').style.width = '100%';
-          document.getElementById('renderProgressText').textContent = '✅ Render Complete!';
-          document.getElementById('btnStartRender').disabled = false;
-          showToast('1080p Video Render Complete!', 'success');
-
-          // Show Player
-          const playerWrap = document.getElementById('renderPlayerWrap');
-          const video = document.getElementById('renderedVideoPlayer');
-          video.src = resolveMediaUrl(current.output_path);
-          playerWrap.style.display = 'block';
-          loadRenderHistory();
-        } else if (current.status === 'FAILED') {
-          clearInterval(renderPollInterval);
-          document.getElementById('renderProgressText').textContent = `❌ Render Error: ${current.error_message}`;
-          document.getElementById('renderBar').style.background = 'var(--rose)';
-          document.getElementById('btnStartRender').disabled = false;
-          showToast('Render failed', 'error');
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    if (attempts > 90) clearInterval(renderPollInterval);
-  }, 2000);
 }
 
 async function loadRenderHistory() {
@@ -2900,3 +3214,1151 @@ async function saveSettings() {
     showToast(`Error: ${err.message}`, 'error');
   }
 }
+
+
+// --- MODE 1 ENHANCED HELPERS ---
+function copyM1PromptsCanvas() {
+  const el = document.getElementById('m1OutputCanvasText');
+  if (!el || !el.value.trim()) {
+    showToast('No prompts to copy', 'warn');
+    return;
+  }
+  navigator.clipboard.writeText(el.value.trim())
+    .then(() => showToast(`📋 Copied ${el.value.trim().split('\n').length} prompts to clipboard!`, 'success'))
+    .catch(() => {
+      el.select();
+      document.execCommand('copy');
+      showToast('📋 Copied prompts to clipboard!', 'success');
+    });
+}
+
+function downloadM1PromptsFile() {
+  const el = document.getElementById('m1OutputCanvasText');
+  if (!el || !el.value.trim()) {
+    showToast('No prompts to download', 'warn');
+    return;
+  }
+  const title = (document.getElementById('m1VideoTitle')?.value || 'stickman_prompts').replace(/[^a-zA-Z0-9_\-]/g, '_');
+  const blob = new Blob([el.value], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${title}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`💾 Saved ${title}.txt`, 'success');
+}
+
+function proceedFromM1ToWorkerFarm() {
+  switchStepTab(2);
+}
+
+function toggleDirectivePreview() {
+  const box = document.getElementById('m1DirectiveBox');
+  if (box) {
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+function handleMasterPromptFile(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    const promptInput = document.getElementById('m1MasterPrompt');
+    if (promptInput) promptInput.value = text;
+    const badge = document.getElementById('m1DirectiveStatusBadge');
+    if (badge) {
+      badge.textContent = `${file.name} (Custom Loaded)`;
+      badge.style.color = 'var(--emerald)';
+    }
+    showToast(`Loaded directive from ${file.name}`, 'success');
+  };
+  reader.readAsText(file);
+}
+
+
+// --- PROMPT QUEUE ACTION HELPERS ---
+async function retryFailedPrompts() {
+  if (!activeProjectId) {
+    showToast('Select an active project first', 'warn');
+    return;
+  }
+  try {
+    const res = await fetch(`/api/v1/projects/${activeProjectId}/prompts/retry-failed`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'Failed prompts reset to PENDING!', 'success');
+      await loadProjectPrompts();
+      await loadFleetCalculation();
+    } else {
+      showToast(data.error || 'Failed to retry prompts', 'error');
+    }
+  } catch (err) {
+    showToast(`Retry error: ${err.message}`, 'error');
+  }
+}
+
+async function clearFailedPrompts() {
+  if (!activeProjectId) {
+    showToast('Select an active project first', 'warn');
+    return;
+  }
+  if (!confirm('Are you sure you want to delete all failed prompts from this project?')) return;
+  try {
+    const res = await fetch(`/api/v1/projects/${activeProjectId}/prompts/failed`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'Failed prompts cleared!', 'success');
+      await loadProjectPrompts();
+      await loadFleetCalculation();
+    } else {
+      showToast(data.error || 'Failed to clear prompts', 'error');
+    }
+  } catch (err) {
+    showToast(`Clear error: ${err.message}`, 'error');
+  }
+}
+
+async function clearAllPromptsQueue() {
+  if (!activeProjectId) {
+    showToast('Select an active project first', 'warn');
+    return;
+  }
+  if (!confirm('Are you sure you want to clear ALL prompts from this project queue?')) return;
+  try {
+    const res = await fetch(`/api/v1/projects/${activeProjectId}/prompts/all`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('All prompts cleared from queue', 'success');
+      await loadProjectPrompts();
+      await loadFleetCalculation();
+    } else {
+      showToast(data.error || 'Failed to clear prompts', 'error');
+    }
+  } catch (err) {
+    showToast(`Clear error: ${err.message}`, 'error');
+  }
+}
+
+
+// ==========================================================================
+// TOOLS & ASSETS POST-PRODUCTION ENGINE (PORTED & EXPANDED)
+// ==========================================================================
+window.activeToolsTab = 'effects';
+window.activeAtmosphericEffect = 'normal';
+window.activeTransitionPreset = 'cross_dissolve';
+window.activeMotionPreset = 'motion-zoom-in';
+window.renderMusicVolume = 0.07;
+
+const ATMOSPHERIC_FILTERS = {
+  normal: '',
+  bright: 'brightness(1.18) contrast(1.08) saturate(1.05)',
+  moody_dark: 'brightness(0.82) contrast(1.35) saturate(0.85)',
+  warm: 'sepia(0.25) saturate(1.4) hue-rotate(-10deg) contrast(1.1)',
+  cool: 'hue-rotate(185deg) saturate(1.15) contrast(1.1)',
+  vintage: 'sepia(0.4) contrast(1.1) brightness(0.95) saturate(1.2)',
+  b_w: 'grayscale(1) contrast(1.3) brightness(1.05)',
+  vivid: 'saturate(1.8) contrast(1.2)',
+  dreamy: 'brightness(1.1) contrast(1.05) saturate(1.2)',
+  neon: 'contrast(1.4) saturate(1.7) hue-rotate(290deg)',
+  golden_hour: 'sepia(0.35) saturate(1.6) brightness(1.08) contrast(1.12)',
+  cyberpunk: 'contrast(1.35) saturate(1.7) hue-rotate(20deg)',
+  noir: 'grayscale(1) contrast(1.7) brightness(0.9)',
+  sepia: 'sepia(0.85) contrast(1.15) brightness(0.95)',
+  invert: 'invert(1) hue-rotate(180deg)',
+  pastel: 'saturate(0.8) brightness(1.12) contrast(0.95)',
+  frost: 'hue-rotate(180deg) saturate(0.7) brightness(1.15) contrast(1.1)',
+  sunset: 'saturate(1.6) contrast(1.2) hue-rotate(-20deg)',
+  ocean: 'hue-rotate(160deg) saturate(1.35) contrast(1.15)',
+  chromatic: 'contrast(1.3) saturate(1.5) drop-shadow(2px 0px 0px rgba(255,0,80,0.5)) drop-shadow(-2px 0px 0px rgba(0,240,255,0.5))'
+};
+
+function switchToolsTab(tabName) {
+  window.activeToolsTab = tabName;
+  const tabs = ['effects', 'captions', 'motion', 'audio', 'media'];
+  
+  tabs.forEach(t => {
+    const btn = document.getElementById(`toolTab-${t}`);
+    const content = document.getElementById(`tabContent-${t}`);
+    if (btn) btn.classList.toggle('active', t === tabName);
+    if (content) content.style.display = (t === tabName) ? 'flex' : 'none';
+  });
+
+  const badge = document.getElementById('toolsActiveModeBadge');
+  if (badge) {
+    const labels = {
+      effects: '✨ Effects Active',
+      captions: '💬 Captions Active',
+      motion: '⚡ Motion Active',
+      audio: '🔊 Audio / SFX',
+      media: '📁 Media Inspector'
+    };
+    badge.textContent = labels[tabName] || 'Active';
+  }
+
+  if (tabName === 'media') {
+    updateMediaInspector();
+  }
+}
+
+function applyAtmosphericEffectToCanvas() {
+  const imgEl = document.getElementById('playerCanvasImage');
+  const viewport = document.getElementById('playerCanvasViewport');
+  if (!imgEl) return;
+
+  const blurVal = parseFloat(document.getElementById('fxBlurSlider')?.value) || 0;
+  const expVal = parseFloat(document.getElementById('fxExposureSlider')?.value) || 0;
+  const contrastVal = parseFloat(document.getElementById('fxContrastSlider')?.value) || 100;
+  const satVal = parseFloat(document.getElementById('fxSaturationSlider')?.value) || 100;
+  const vignetteOn = document.getElementById('fxVignetteToggle')?.checked;
+  const grainOn = document.getElementById('fxGrainToggle')?.checked;
+  const sharpenOn = document.getElementById('fxSharpenToggle')?.checked;
+  const glowOn = document.getElementById('fxGlowToggle')?.checked;
+
+  let filterParts = [];
+  const basePreset = ATMOSPHERIC_FILTERS[window.activeAtmosphericEffect] || '';
+  if (basePreset) filterParts.push(basePreset);
+
+  if (blurVal > 0) filterParts.push(`blur(${blurVal}px)`);
+  if (expVal !== 0) filterParts.push(`brightness(${1 + (expVal / 100)})`);
+  if (contrastVal !== 100) filterParts.push(`contrast(${contrastVal / 100})`);
+  if (satVal !== 100) filterParts.push(`saturate(${satVal / 100})`);
+  if (glowOn) filterParts.push('drop-shadow(0 0 10px rgba(0,240,255,0.5))');
+  if (sharpenOn) filterParts.push('contrast(1.15)');
+
+  imgEl.style.filter = filterParts.join(' ');
+
+  if (viewport) {
+    const forceVig = (window.activeAtmosphericEffect === 'moody_dark' || window.activeAtmosphericEffect === 'noir');
+    viewport.classList.toggle('has-vignette', !!vignetteOn || forceVig);
+    viewport.classList.toggle('has-grain', !!grainOn || window.activeAtmosphericEffect === 'vintage');
+  }
+}
+
+function selectAtmosphericEffect(presetKey) {
+  window.activeAtmosphericEffect = presetKey;
+  document.querySelectorAll('.atmos-card').forEach(card => {
+    card.classList.toggle('active', card.getAttribute('data-preset') === presetKey);
+  });
+  applyAtmosphericEffectToCanvas();
+  showToast(`Atmospheric look: ${presetKey.replace('_', ' ').toUpperCase()}`, 'info');
+}
+
+function resetAtmosphericEffects() {
+  window.activeAtmosphericEffect = 'normal';
+  document.querySelectorAll('.atmos-card').forEach(card => {
+    card.classList.toggle('active', card.getAttribute('data-preset') === 'normal');
+  });
+
+  const blurEl = document.getElementById('fxBlurSlider');
+  const expEl = document.getElementById('fxExposureSlider');
+  const contrastEl = document.getElementById('fxContrastSlider');
+  const satEl = document.getElementById('fxSaturationSlider');
+  const vigEl = document.getElementById('fxVignetteToggle');
+  const grainEl = document.getElementById('fxGrainToggle');
+  const sharpEl = document.getElementById('fxSharpenToggle');
+  const glowEl = document.getElementById('fxGlowToggle');
+
+  if (blurEl) blurEl.value = 0;
+  if (expEl) expEl.value = 0;
+  if (contrastEl) contrastEl.value = 100;
+  if (satEl) satEl.value = 100;
+  if (vigEl) vigEl.checked = false;
+  if (grainEl) grainEl.checked = false;
+  if (sharpEl) sharpEl.checked = false;
+  if (glowEl) glowEl.checked = false;
+
+  updateCustomEffectSliders();
+  showToast('Reset atmospheric effects to Normal', 'info');
+}
+
+function updateCustomEffectSliders() {
+  const blurVal = document.getElementById('fxBlurSlider')?.value || 0;
+  const expVal = document.getElementById('fxExposureSlider')?.value || 0;
+  const contrastVal = document.getElementById('fxContrastSlider')?.value || 100;
+  const satVal = document.getElementById('fxSaturationSlider')?.value || 100;
+
+  const lblBlur = document.getElementById('fxBlurVal');
+  const lblExp = document.getElementById('fxExposureVal');
+  const lblContrast = document.getElementById('fxContrastVal');
+  const lblSat = document.getElementById('fxSaturationVal');
+
+  if (lblBlur) lblBlur.textContent = `${blurVal}px`;
+  if (lblExp) lblExp.textContent = `${expVal > 0 ? '+' : ''}${expVal}%`;
+  if (lblContrast) lblContrast.textContent = `${contrastVal}%`;
+  if (lblSat) lblSat.textContent = `${satVal}%`;
+
+  applyAtmosphericEffectToCanvas();
+}
+
+function selectMotionPreset(motionClass, el) {
+  window.activeMotionPreset = motionClass;
+  document.querySelectorAll('[data-motion]').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  const badge = document.getElementById('activeMotionBadge');
+  if (badge && el) {
+    const title = el.querySelector('.motion-card-title');
+    if (title) badge.textContent = title.textContent;
+  }
+
+  const imgEl = document.getElementById('playerCanvasImage');
+  if (imgEl) {
+    imgEl.className = 'canvas-image-stage';
+    void imgEl.offsetWidth; // trigger reflow
+    imgEl.className = `canvas-image-stage ${motionClass}`;
+  }
+}
+
+function selectTransitionPreset(transKey, el) {
+  window.activeTransitionPreset = transKey;
+  document.querySelectorAll('[data-transition]').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  const badge = document.getElementById('activeTransitionBadge');
+  if (badge && el) {
+    const title = el.querySelector('.motion-card-title');
+    if (title) badge.textContent = title.textContent;
+  }
+  showToast(`Transition set: ${transKey.replace('_', ' ').toUpperCase()}`, 'info');
+}
+
+// ==========================================================================
+// WEB AUDIO API SFX SYNTHESIZER ENGINE (ZERO-DEPENDENCY AUDITION)
+// ==========================================================================
+let studioAudioCtx = null;
+function getStudioAudioContext() {
+  if (!studioAudioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) studioAudioCtx = new AudioContextClass();
+  }
+  if (studioAudioCtx && studioAudioCtx.state === 'suspended') {
+    studioAudioCtx.resume();
+  }
+  return studioAudioCtx;
+}
+
+function playSfx(type) {
+  const ctx = getStudioAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const masterGain = ctx.createGain();
+  masterGain.connect(ctx.destination);
+
+  if (type === 'whoosh') {
+    const a = new Audio('/sfx/whoosh.wav');
+    a.play().catch(() => synthWhoosh(ctx, now, masterGain, 0.45));
+    return;
+  }
+  if (type === 'pop') {
+    const a = new Audio('/sfx/pop.wav');
+    a.play().catch(() => synthPop(ctx, now, masterGain));
+    return;
+  }
+
+  if (type.includes('whoosh') || type.includes('swish')) {
+    const dur = (type.includes('fast') || type.includes('short')) ? 0.22 : 0.48;
+    synthWhoosh(ctx, now, masterGain, dur, type.includes('reverse'));
+  } else if (type.includes('impact') || type.includes('hit') || type.includes('boom')) {
+    synthImpact(ctx, now, masterGain, type);
+  } else if (type.includes('riser')) {
+    synthRiser(ctx, now, masterGain, type.includes('tension'));
+  } else if (type.includes('ambience') || type.includes('tone')) {
+    synthAmbience(ctx, now, masterGain, type);
+  } else if (type === 'camera_shutter') {
+    synthShutter(ctx, now, masterGain);
+  } else if (type === 'click' || type === 'tick' || type === 'digital_click') {
+    synthClick(ctx, now, masterGain, type);
+  } else if (type === 'glitch_hit') {
+    synthGlitch(ctx, now, masterGain);
+  } else {
+    synthWhoosh(ctx, now, masterGain, 0.35);
+  }
+}
+
+function synthWhoosh(ctx, now, masterGain, duration = 0.45, isReverse = false) {
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.Q.setValueAtTime(3.5, now);
+
+  const gain = ctx.createGain();
+  if (isReverse) {
+    filter.frequency.setValueAtTime(150, now);
+    filter.frequency.exponentialRampToValueAtTime(3000, now + duration);
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.exponentialRampToValueAtTime(0.7, now + duration * 0.85);
+    gain.gain.linearRampToValueAtTime(0.01, now + duration);
+  } else {
+    filter.frequency.setValueAtTime(200, now);
+    filter.frequency.exponentialRampToValueAtTime(2800, now + duration * 0.4);
+    filter.frequency.exponentialRampToValueAtTime(180, now + duration);
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.8, now + duration * 0.3);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+  }
+
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+
+  noise.start(now);
+  noise.stop(now + duration);
+}
+
+function synthImpact(ctx, now, masterGain, type) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  const isDeep = type.includes('deep') || type.includes('sub') || type.includes('bass');
+  const startFreq = isDeep ? 90 : 160;
+  const endFreq = isDeep ? 28 : 45;
+  const dur = isDeep ? 1.6 : 1.1;
+
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(startFreq, now);
+  osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
+
+  gain.gain.setValueAtTime(0.9, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+  osc.connect(gain);
+  gain.connect(masterGain);
+
+  osc.start(now);
+  osc.stop(now + dur);
+}
+
+function synthRiser(ctx, now, masterGain, isTension = false) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const dur = 2.4;
+
+  osc.type = isTension ? 'sawtooth' : 'triangle';
+  osc.frequency.setValueAtTime(100, now);
+  osc.frequency.exponentialRampToValueAtTime(1200, now + dur);
+
+  gain.gain.setValueAtTime(0.05, now);
+  gain.gain.linearRampToValueAtTime(0.65, now + dur * 0.9);
+  gain.gain.linearRampToValueAtTime(0.001, now + dur);
+
+  osc.connect(gain);
+  gain.connect(masterGain);
+
+  osc.start(now);
+  osc.stop(now + dur);
+}
+
+function synthAmbience(ctx, now, masterGain, type) {
+  const dur = 2.5;
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc1.type = 'sine';
+  osc1.frequency.setValueAtTime(65, now);
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(97.5, now); // perfect fifth
+
+  gain.gain.setValueAtTime(0.01, now);
+  gain.gain.linearRampToValueAtTime(0.4, now + 0.6);
+  gain.gain.linearRampToValueAtTime(0.01, now + dur);
+
+  osc1.connect(gain);
+  osc2.connect(gain);
+  gain.connect(masterGain);
+
+  osc1.start(now);
+  osc2.start(now);
+  osc1.stop(now + dur);
+  osc2.stop(now + dur);
+}
+
+function synthClick(ctx, now, masterGain, type) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const freq = type === 'tick' ? 2400 : 1200;
+
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, now);
+  gain.gain.setValueAtTime(0.5, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+  osc.connect(gain);
+  gain.connect(masterGain);
+
+  osc.start(now);
+  osc.stop(now + 0.05);
+}
+
+function synthPop(ctx, now, masterGain) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(600, now);
+  osc.frequency.exponentialRampToValueAtTime(140, now + 0.09);
+
+  gain.gain.setValueAtTime(0.7, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+  osc.connect(gain);
+  gain.connect(masterGain);
+
+  osc.start(now);
+  osc.stop(now + 0.11);
+}
+
+function synthShutter(ctx, now, masterGain) {
+  synthClick(ctx, now, masterGain, 'tick');
+  synthClick(ctx, now + 0.065, masterGain, 'click');
+}
+
+function synthGlitch(ctx, now, masterGain) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(450, now);
+  osc.frequency.setValueAtTime(920, now + 0.03);
+  osc.frequency.setValueAtTime(210, now + 0.06);
+
+  gain.gain.setValueAtTime(0.4, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+  osc.connect(gain);
+  gain.connect(masterGain);
+
+  osc.start(now);
+  osc.stop(now + 0.13);
+}
+
+function attachSfxToCurrentScene(sfxName) {
+  if (!timelineItems || timelineItems.length === 0) {
+    showToast('No scenes on timeline to attach sound', 'warn');
+    return;
+  }
+  const idx = currentSceneIndex;
+  timelineItems[idx].sfx = sfxName;
+  showToast(`🔊 Attached "${sfxName}" to Scene #${idx + 1}`, 'success');
+  renderCapCutTimeline();
+}
+
+function updateMediaInspector() {
+  if (!timelineItems || timelineItems.length === 0) return;
+  const idx = currentSceneIndex;
+  const item = timelineItems[idx];
+  if (!item) return;
+
+  const titleEl = document.getElementById('mediaInspectorTitle');
+  const badgeEl = document.getElementById('mediaInspectorBadge');
+  const thumbEl = document.getElementById('mediaInspectorThumb');
+  const durEl = document.getElementById('mediaInspectorDuration');
+  const textEl = document.getElementById('mediaInspectorPromptText');
+
+  if (titleEl) titleEl.textContent = `🎬 Active Scene #${idx + 1}`;
+  if (badgeEl) badgeEl.textContent = `Prompt ${item.prompt_id_str || String(idx + 1).padStart(3, '0')}`;
+  if (durEl) durEl.textContent = `${(parseFloat(item.duration) || 1.33).toFixed(2)}s`;
+  if (textEl) textEl.textContent = item.prompt_text || `Prompt description for scene #${idx + 1}`;
+
+  const rawImg = item.image_path || item.file_path;
+  if (thumbEl && rawImg) {
+    thumbEl.src = resolveMediaUrl(rawImg, item);
+  }
+}
+
+function onReplaceSceneImage(inputEl) {
+  if (!inputEl.files || !inputEl.files[0]) return;
+  const file = inputEl.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    if (timelineItems[currentSceneIndex]) {
+      timelineItems[currentSceneIndex].image_path = dataUrl;
+      const imgEl = document.getElementById('playerCanvasImage');
+      if (imgEl) imgEl.src = dataUrl;
+      renderCapCutTimeline();
+      updateMediaInspector();
+      showToast(`Updated image for Scene #${currentSceneIndex + 1}`, 'success');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+
+// ==========================================================================
+// STEP 5 & STEP 6 ADVANCED HELPER FUNCTIONS
+// ==========================================================================
+function onRenderResolutionChange(val) {
+  const badge = document.getElementById('resBadge');
+  if (!badge) return;
+  const labels = {
+    '3840x2160': '🌟 4K Ultra HD',
+    '2560x1440': '💎 2K Quad HD',
+    '1920x1080': '🎬 1080p Full HD',
+    '2160x3840': '📱 4K Vertical Shorts',
+    '1080x1920': '📱 1080p Vertical Shorts'
+  };
+  badge.textContent = labels[val] || val;
+}
+
+function playRenderVideo(url) {
+  const player = document.getElementById('step5MasterPlayer');
+  const placeholder = document.getElementById('step5PlayerPlaceholder');
+  if (player) {
+    player.src = url;
+    player.style.display = 'block';
+    player.play().catch(() => {});
+  }
+  if (placeholder) {
+    placeholder.style.display = 'none';
+  }
+}
+
+async function openOutputFolder(type = 'renders') {
+  try {
+    const res = await fetch('/api/v1/system/open-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder_type: type, project_id: activeProjectId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Opened folder in Windows Explorer`, 'info');
+    } else {
+      showToast(`Could not open folder: ${data.error}`, 'warn');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+function togglePasswordVisibility(inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.type = (el.type === 'password') ? 'text' : 'password';
+}
+
+async function testGroqKeyConnection() {
+  const keyInput = document.getElementById('settingsGroqKeySingle')?.value.trim();
+  showToast('Testing Groq Cloud API connection...', 'info');
+  try {
+    const res = await fetch('/api/v1/settings/test-groq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: keyInput })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`✓ ${data.message}`, 'success');
+    } else {
+      showToast(`❌ Groq Key Test Failed: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Connection error: ${err.message}`, 'error');
+  }
+}
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/v1/settings');
+    const data = await res.json();
+    
+    // Groq settings
+    if (data.groq_primary_model && document.getElementById('settingsGroqModel')) {
+      document.getElementById('settingsGroqModel').value = data.groq_primary_model;
+    }
+    if (data.groq_fallback_model && document.getElementById('settingsGroqFallback')) {
+      document.getElementById('settingsGroqFallback').value = data.groq_fallback_model;
+    }
+    if (data.groq_api_key && document.getElementById('settingsGroqKeySingle')) {
+      document.getElementById('settingsGroqKeySingle').value = data.groq_api_key;
+    }
+    if (data.groq_api_keys_pool && document.getElementById('settingsGroqKeyPool')) {
+      try {
+        const pool = JSON.parse(data.groq_api_keys_pool);
+        if (Array.isArray(pool)) {
+          document.getElementById('settingsGroqKeyPool').value = pool.join('\n');
+          const poolLabel = document.getElementById('keyPoolCountLabel');
+          if (poolLabel) poolLabel.textContent = `${pool.length} Key(s) Loaded`;
+        }
+      } catch (e) {
+        document.getElementById('settingsGroqKeyPool').value = data.groq_api_keys_pool;
+      }
+    }
+
+    // ElevenLabs
+    if (data.elevenlabs_api_key && document.getElementById('settingsElevenLabsKey')) {
+      document.getElementById('settingsElevenLabsKey').value = data.elevenlabs_api_key;
+    }
+    if (data.elevenlabs_voice_id && document.getElementById('settingsElevenLabsVoiceId')) {
+      document.getElementById('settingsElevenLabsVoiceId').value = data.elevenlabs_voice_id;
+    }
+
+    // OpenAI
+    if (data.openai_api_key && document.getElementById('settingsOpenAIKey')) {
+      document.getElementById('settingsOpenAIKey').value = data.openai_api_key;
+    }
+    if (data.openai_model && document.getElementById('settingsOpenAIModel')) {
+      document.getElementById('settingsOpenAIModel').value = data.openai_model;
+    }
+
+    // Stability & Pexels
+    if (data.stability_api_key && document.getElementById('settingsStabilityKey')) {
+      document.getElementById('settingsStabilityKey').value = data.stability_api_key;
+    }
+    if (data.pexels_api_key && document.getElementById('settingsPexelsKey')) {
+      document.getElementById('settingsPexelsKey').value = data.pexels_api_key;
+    }
+  } catch (err) {
+    console.warn('loadSettings error:', err);
+  }
+}
+
+async function saveAllSettings() {
+  const groqSingle = document.getElementById('settingsGroqKeySingle')?.value.trim();
+  const groqPool = document.getElementById('settingsGroqKeyPool')?.value.trim();
+  const primaryModel = document.getElementById('settingsGroqModel')?.value.trim();
+  const fallbackModel = document.getElementById('settingsGroqFallback')?.value.trim();
+  const elevenKey = document.getElementById('settingsElevenLabsKey')?.value.trim();
+  const elevenVoice = document.getElementById('settingsElevenLabsVoiceId')?.value.trim();
+  const openAIKey = document.getElementById('settingsOpenAIKey')?.value.trim();
+  const openAIModel = document.getElementById('settingsOpenAIModel')?.value.trim();
+  const stabilityKey = document.getElementById('settingsStabilityKey')?.value.trim();
+  const pexelsKey = document.getElementById('settingsPexelsKey')?.value.trim();
+
+  const payload = {};
+  if (primaryModel) payload.groq_primary_model = primaryModel;
+  if (fallbackModel) payload.groq_fallback_model = fallbackModel;
+  if (groqSingle) payload.groq_api_key = groqSingle;
+  if (elevenKey) payload.elevenlabs_api_key = elevenKey;
+  if (elevenVoice) payload.elevenlabs_voice_id = elevenVoice;
+  if (openAIKey) payload.openai_api_key = openAIKey;
+  if (openAIModel) payload.openai_model = openAIModel;
+  if (stabilityKey) payload.stability_api_key = stabilityKey;
+  if (pexelsKey) payload.pexels_api_key = pexelsKey;
+
+  if (groqPool) {
+    const lines = groqPool.split('\n').map(l => l.trim()).filter(l => l.startsWith('gsk_'));
+    if (lines.length > 0) {
+      payload.groq_api_keys_pool = JSON.stringify(lines);
+      if (!payload.groq_api_key) payload.groq_api_key = lines[0];
+    }
+  }
+
+  showToast('Saving all settings & keys to local database...', 'info');
+  try {
+    const res = await fetch('/api/v1/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('All settings & API keys saved successfully!', 'success');
+      await loadSettings();
+    } else {
+      showToast(data.error || 'Failed to save settings', 'error');
+    }
+  } catch (err) {
+    showToast(`Error saving settings: ${err.message}`, 'error');
+  }
+}
+
+async function testGroqKeyConnection() {
+  const keyInput = document.getElementById('settingsGroqKeySingle')?.value.trim();
+  showToast('Testing Groq Cloud API connection...', 'info');
+  try {
+    const res = await fetch('/api/v1/settings/test-groq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: keyInput })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`✓ ${data.message}`, 'success');
+    } else {
+      showToast(`❌ Groq Key Test Failed: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Connection error: ${err.message}`, 'error');
+  }
+}
+
+async function saveAllSettings() {
+  const groqSingle = document.getElementById('settingsGroqKeySingle')?.value.trim();
+  const groqPool = document.getElementById('settingsGroqKeyPool')?.value.trim();
+  const primaryModel = document.getElementById('settingsGroqModel')?.value.trim();
+  const fallbackModel = document.getElementById('settingsGroqFallback')?.value.trim();
+  const elevenKey = document.getElementById('settingsElevenLabsKey')?.value.trim();
+  const openAIKey = document.getElementById('settingsOpenAIKey')?.value.trim();
+
+  const payload = {};
+  if (primaryModel) payload.groq_primary_model = primaryModel;
+  if (fallbackModel) payload.groq_fallback_model = fallbackModel;
+  if (groqSingle) payload.groq_api_key = groqSingle;
+  if (elevenKey) payload.elevenlabs_api_key = elevenKey;
+  if (openAIKey) payload.openai_api_key = openAIKey;
+
+  if (groqPool) {
+    const lines = groqPool.split('\n').map(l => l.trim()).filter(l => l.startsWith('gsk_'));
+    if (lines.length > 0) {
+      payload.groq_api_keys_pool = JSON.stringify(lines);
+      if (!payload.groq_api_key) payload.groq_api_key = lines[0];
+    }
+  }
+
+  showToast('Saving settings to local database...', 'info');
+  try {
+    const res = await fetch('/api/v1/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('All settings & API keys saved successfully!', 'success');
+      await loadSettings();
+    } else {
+      showToast(`Save error: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error saving settings: ${err.message}`, 'error');
+  }
+}
+
+async function stopAllWorkers() {
+  if (!confirm('Are you sure you want to stop all active Chrome worker windows?')) return;
+  showToast('Stopping all worker browser instances...', 'info');
+  try {
+    const res = await fetch('/api/v1/workers/stop-all', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Stopped ${data.count || 0} worker browser windows`, 'success');
+      setTimeout(refreshFleetStatus, 2000);
+    } else {
+      showToast(data.error || 'Failed to stop workers', 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+// =============================================
+// MODE 1 & 2: 1-CLICK FLEET DISPATCH & AUTO-START
+// =============================================
+window.startMode1Generating = async function() {
+  const pId = activeProjectId || (currentProjectData && currentProjectData.id);
+  if (!pId) {
+    showToast('Select or create an active project first', 'warn');
+    return;
+  }
+
+  const rawInput = document.getElementById('rawPromptsInput');
+  const rawText = rawInput ? rawInput.value.trim() : '';
+
+  // 1. If prompts are pasted in the raw input box, validate and import them first
+  if (rawText) {
+    showToast('Validating & importing prompts...', 'info');
+    try {
+      const importRes = await fetch(`/api/v1/projects/${pId}/prompts/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw_prompts: rawText })
+      });
+      const importData = await importRes.json();
+      if (!importData.success) {
+        const errMsg = (importData.errors && importData.errors.length) ? importData.errors.join(', ') : (importData.error || 'Failed to import prompts');
+        showToast(`Validation error: ${errMsg}`, 'error');
+        return;
+      }
+      showToast(`Imported ${importData.count} prompts!`, 'success');
+      rawInput.value = '';
+    } catch (err) {
+      showToast(`Import error: ${err.message}`, 'error');
+      return;
+    }
+  }
+
+  // Save Mode 1 character reference if provided
+  const charNameEl = document.getElementById('step1M1CharName');
+  const charDescEl = document.getElementById('step1M1CharDesc');
+  const charName = charNameEl ? charNameEl.value.trim() : 'Main Stickman';
+  const charDesc = charDescEl ? charDescEl.value.trim() : '';
+
+  if (step1M1CharBase64 || charDesc) {
+    try {
+      await fetch(`/api/v1/projects/${pId}/character-reference`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          character_name: charName,
+          character_description: charDesc,
+          image_base64: step1M1CharBase64
+        })
+      });
+      console.log('Step 1 Mode 1 character reference saved successfully');
+    } catch (cErr) {
+      console.warn('Saving character reference error:', cErr);
+    }
+  }
+
+  // 2. Verify project has prompts in queue
+  try {
+    const promptsRes = await fetch(`/api/v1/projects/${pId}/prompts`);
+    const promptsData = await promptsRes.json();
+    const promptList = Array.isArray(promptsData) ? promptsData : (promptsData.prompts || []);
+    const promptsCount = promptList.length;
+
+    if (promptsCount === 0) {
+      showToast('No prompts in project. Please paste or generate prompts first.', 'warn');
+      return;
+    }
+
+    const startBtn = document.getElementById('btnM1StartGenerating');
+    if (startBtn) {
+      startBtn.disabled = true;
+      startBtn.innerHTML = '<span>⏳</span> Spawning Fleet & Launching Browsers...';
+    }
+
+    openFleetDispatchModal(pId);
+  } catch (err) {
+    showToast(`Fleet launch error: ${err.message}`, 'error');
+  } finally {
+    const startBtn = document.getElementById('btnM1StartGenerating');
+    if (startBtn) {
+      startBtn.disabled = false;
+      startBtn.innerHTML = '<span>🚀</span> Start Generating (1-Click Fleet Launch)';
+    }
+  }
+};
+
+
+// Simple New Project Modal Handler
+let simpleVoiceFile = null;
+
+function handleSimpleVoiceFile(input) {
+  if (input.files && input.files[0]) {
+    simpleVoiceFile = input.files[0];
+    const status = document.getElementById('newProjVoiceSimpleStatus');
+    if (status) {
+      status.style.display = 'inline-flex';
+      status.innerHTML = `<strong style="color: var(--emerald);">✓ Voiceover ready:</strong> ${simpleVoiceFile.name}`;
+    }
+  }
+}
+
+async function submitSimpleNewProject() {
+  const nameInput = document.getElementById('newProjNameSimple');
+  const name = nameInput ? nameInput.value.trim() : '';
+
+  if (!name) {
+    showToast('Please enter a Project Name / Video Title', 'warn');
+    return;
+  }
+
+  try {
+    showToast('Creating production project...', 'info');
+    const res = await fetch('/api/v1/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        mode: 'MODE_1',
+        voiceover_path: simpleVoiceFile ? simpleVoiceFile.name : null
+      })
+    });
+    const created = await res.json();
+    if (created.id) {
+      if (simpleVoiceFile) {
+        const formData = new FormData();
+        formData.append('audio', simpleVoiceFile);
+        formData.append('track_type', 'VOICEOVER');
+        await fetch(`/api/v1/projects/${created.id}/audio/upload`, { method: 'POST', body: formData }).catch(console.error);
+      }
+
+      showToast(`Project created: ${created.name}`, 'success');
+      closeNewProjectModal();
+      if (nameInput) nameInput.value = '';
+      simpleVoiceFile = null;
+      await loadProjects();
+      await onSelectProject(created.id);
+      goToStep(1);
+    } else {
+      showToast(created.error || 'Failed to create project', 'error');
+    }
+  } catch (err) {
+    showToast(`Error creating project: ${err.message}`, 'error');
+  }
+}
+
+window.submitSimpleNewProject = submitSimpleNewProject;
+window.handleSimpleVoiceFile = handleSimpleVoiceFile;
+
+
+
+// ==================== FLEET CONFIRMATION MODAL & BATCH DISPATCH ====================
+let _pendingFleetProjectId = null;
+let _pendingFleetTotalPrompts = 0;
+
+window.openFleetDispatchModal = async function(projectId) {
+  const pId = projectId || activeProjectId || (currentProjectData && currentProjectData.id);
+  if (!pId) {
+    showToast('Select or create a project first', 'warn');
+    return;
+  }
+  _pendingFleetProjectId = pId;
+
+  const modal = document.getElementById('fleetConfirmModal');
+  if (!modal) return;
+
+  try {
+    const res = await fetch(`/api/v1/projects/${pId}/workers/calculate-fleet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quota_per_worker: 50, max_concurrent: 10 })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'Failed to calculate fleet', 'error');
+      return;
+    }
+
+    _pendingFleetTotalPrompts = data.total_prompts || 0;
+    if (_pendingFleetTotalPrompts === 0) {
+      showToast('No prompts in project. Paste or generate prompts first.', 'warn');
+      return;
+    }
+
+    document.getElementById('modalFleetTotalPrompts').textContent = data.total_prompts;
+    document.getElementById('modalFleetTotalNeeded').textContent = data.total_workers_needed;
+    
+    // Set default worker counts (or honor current farm inputs)
+    const farmMeta = parseInt(document.getElementById('farmMetaCount')?.value, 10);
+    const farmFlow = parseInt(document.getElementById('farmFlowCount')?.value, 10);
+
+    const metaVal = !isNaN(farmMeta) && farmMeta > 0 ? farmMeta : (data.default_meta_workers || Math.ceil(data.total_workers_needed / 2));
+    const flowVal = !isNaN(farmFlow) && farmFlow >= 0 ? farmFlow : (data.default_flow_workers || Math.floor(data.total_workers_needed / 2));
+
+    document.getElementById('modalMetaCount').value = Math.min(10, metaVal);
+    document.getElementById('modalFlowCount').value = Math.min(10, flowVal);
+
+    updateFleetModalSummary();
+    modal.style.display = 'flex';
+  } catch (err) {
+    showToast(`Error calculating fleet: ${err.message}`, 'error');
+  }
+};
+
+window.closeFleetConfirmModal = function() {
+  const modal = document.getElementById('fleetConfirmModal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.updateFleetModalSummary = function() {
+  const metaInput = document.getElementById('modalMetaCount');
+  const flowInput = document.getElementById('modalFlowCount');
+  const noteEl = document.getElementById('modalFleetStrategyNote');
+  if (!noteEl) return;
+
+  const mCount = parseInt(metaInput ? metaInput.value : 0, 10) || 0;
+  const fCount = parseInt(flowInput ? flowInput.value : 0, 10) || 0;
+  const totalW = mCount + fCount;
+  const N = _pendingFleetTotalPrompts;
+
+  if (totalW === 0) {
+    noteEl.innerHTML = '<span style="color: var(--rose);">⚠️ Please select at least 1 worker (Meta or Flow).</span>';
+    return;
+  }
+
+  const batch1Capacity = totalW * 50;
+  if (N <= batch1Capacity) {
+    noteEl.innerHTML = `<strong>⚡ Parallel Execution:</strong> All <strong>${N} prompts</strong> will be distributed in <strong>batches of 50</strong> across <strong>${totalW} active workers</strong> (${mCount} Meta + ${fCount} Flow) simultaneously.`;
+  } else {
+    const remaining = N - batch1Capacity;
+    noteEl.innerHTML = `<strong>⚡ 2-Stage Queue:</strong> <strong>${totalW} workers</strong> will process the first <strong>${batch1Capacity} prompts</strong> (50 each). The remaining <strong>${remaining} prompts</strong> will stay in auto-queue and be automatically picked up as soon as any worker completes its batch!`;
+  }
+};
+
+window.executeConfirmedFleetLaunch = async function() {
+  const pId = _pendingFleetProjectId;
+  if (!pId) return;
+
+  const mCount = parseInt(document.getElementById('modalMetaCount')?.value, 10) || 0;
+  const fCount = parseInt(document.getElementById('modalFlowCount')?.value, 10) || 0;
+  const totalW = mCount + fCount;
+
+  if (totalW === 0) {
+    showToast('Select at least 1 worker', 'warn');
+    return;
+  }
+
+  closeFleetConfirmModal();
+  showToast(`🚀 Launching Fleet: ${mCount} Meta + ${fCount} Flow Workers (50 prompts/batch)...`, 'info');
+
+  try {
+    const res = await fetch(`/api/v1/projects/${pId}/workers/dispatch-fleet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        quota_per_worker: 50,
+        meta_count: mCount,
+        flow_count: fCount,
+        auto_launch: true
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      if (typeof goToStep === 'function') goToStep(2);
+      if (typeof refreshWorkers === 'function') refreshWorkers();
+      if (typeof refreshFleetStatus === 'function') refreshFleetStatus();
+    } else {
+      showToast(data.error || 'Failed to dispatch fleet', 'error');
+    }
+  } catch (err) {
+    showToast(`Fleet launch error: ${err.message}`, 'error');
+  }
+};
+
+
+
+// ==================== PROJECT DELETION ====================
+window.deleteCurrentProject = async function() {
+  const pId = activeProjectId || (currentProjectData && currentProjectData.id);
+  if (!pId) {
+    showToast('Select a project to delete first', 'warn');
+    return;
+  }
+  const pName = (currentProjectData && currentProjectData.name) || pId;
+  const confirmed = confirm(`Are you sure you want to permanently delete project "${pName}"?\n\nThis will remove all prompts, jobs, and generated assets.`);
+  if (!confirmed) return;
+
+  try {
+    showToast(`Deleting project ${pName}...`, 'info');
+    const res = await fetch(`/api/v1/projects/${pId}?purge=false`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Project "${pName}" deleted successfully!`, 'success');
+      activeProjectId = null;
+      currentProjectData = null;
+      await loadProjects();
+    } else {
+      showToast(data.error || 'Failed to delete project', 'error');
+    }
+  } catch (err) {
+    showToast(`Delete error: ${err.message}`, 'error');
+  }
+};

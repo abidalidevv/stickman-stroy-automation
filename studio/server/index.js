@@ -41,9 +41,10 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Static file hosting for images and assets
-const PROJECTS_ROOT = path.resolve('E:/stickman-video-automation/Projects');
+const ROOT_DIR = process.env.STICKMAN_ROOT || path.resolve(__dirname, '../../');
+const PROJECTS_ROOT = process.env.PROJECTS_ROOT || path.join(ROOT_DIR, 'Projects');
 app.use('/projects-media', express.static(PROJECTS_ROOT));
-const DEMO_ROOT = path.resolve('E:/stickman-video-automation/Demo');
+const DEMO_ROOT = path.join(ROOT_DIR, 'Demo');
 app.use('/demo-media', express.static(DEMO_ROOT));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

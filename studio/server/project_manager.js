@@ -3,7 +3,8 @@ const path = require('path');
 const db = require('./db');
 const logger = require('./logger');
 
-const PROJECTS_ROOT = path.resolve('E:/stickman-video-automation/Projects');
+const ROOT_DIR = process.env.STICKMAN_ROOT || path.resolve(__dirname, '../../');
+const PROJECTS_ROOT = process.env.PROJECTS_ROOT || path.join(ROOT_DIR, 'Projects');
 if (!fs.existsSync(PROJECTS_ROOT)) {
   fs.mkdirSync(PROJECTS_ROOT, { recursive: true });
 }
@@ -14,6 +15,7 @@ const PACING_MULTIPLIERS = {
   '3/4s': 0.75,
   '4/4s': 1.00,
   '5/4s': 1.25,
+  'Random': 0.50,
   'Custom': 0.50
 };
 
@@ -136,74 +138,134 @@ async function createProject({
   return getProject(projId);
 }
 
-// Mode 2 Clean Prompt List Parser
+
+function cleanPromptText(raw) {
+  let str = String(raw || '').trim();
+  // Strip leading numbering or labels: 001_, 1., Scene 1:, Prompt 1:, [Prompt 1], etc.
+  str = str.replace(/^(?:(?:scene|prompt|image|panel|shot|frame)?\s*\[?#?(\d+)\]?[\s_.:\-)\]]+)/i, '').trim();
+  // Strip outer quotes, markdown asterisks or bullet dashes
+  str = str.replace(/^[\"\'\*\-•\s]+|[\"\'\s]+$/g, '').trim();
+  return str;
+}
+
+function smartUniversalPromptExtractor(rawInput) {
+  if (!rawInput) return [];
+  if (Array.isArray(rawInput)) {
+    return rawInput.map(x => cleanPromptText(x)).filter(Boolean);
+  }
+
+  const text = String(rawInput || '').trim();
+  if (!text) return [];
+
+  // Strategy 1: JSON Array or Object
+  if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        const results = [];
+        for (const item of parsed) {
+          if (typeof item === 'string' && item.trim()) {
+            results.push(cleanPromptText(item));
+          } else if (item && typeof item === 'object') {
+            const val = item.prompt || item.text || item.prompt_text || item.fullLine || item.description;
+            if (val) results.push(cleanPromptText(String(val)));
+          }
+        }
+        if (results.length > 0) return results;
+      } else if (parsed && typeof parsed === 'object') {
+        const arr = parsed.prompts || parsed.data || parsed.images || parsed.items;
+        if (Array.isArray(arr)) {
+          return smartUniversalPromptExtractor(JSON.stringify(arr));
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Strategy 2: Explicit Structured Prompt Pack (Style 2: **PROMPT 001**, ### Prompt 1, Image 001:, etc.)
+  const promptMarkerPattern = /(?:^|\n)[#*_\s]*\b(?:PROMPT|IMAGE|SCENE|PANEL|FRAME)\s*#?\[?(\d+)\]?[*_\s]*[:\-—]?\s*\n+/i;
+  const parts = text.split(promptMarkerPattern);
+  if (parts.length >= 3) {
+    const extracted = [];
+    for (let i = 1; i < parts.length; i += 2) {
+      const num = parseInt(parts[i], 10);
+      let body = (parts[i + 1] || '').trim();
+      body = body.split(/\n+(?:###|\*\*Visual Group|\#\#)/i)[0].trim();
+      body = cleanPromptText(body);
+      if (body && body.length > 5) {
+        extracted.push({ num, body });
+      }
+    }
+    if (extracted.length > 0) {
+      extracted.sort((a, b) => a.num - b.num);
+      return extracted.map(e => e.body);
+    }
+  }
+
+  function isDocumentMeta(str) {
+    const s = str.trim();
+    if (!s) return true;
+    if (/^[-=_*~]{3,}$/.test(s)) return true;
+    if (/^(?:#+\s*|\*\*)\s*(?:Stickman|YouTube|Production Specifications|Specification|Character & Visual Consistency|Consistency Rules|Visual Group|\d+\s*Image Prompts)/i.test(s)) return true;
+    if (/^-\s*(?:Voiceover duration|Pacing|Total required|Image duration|Structure|Same core|Keep line|Ancient|No photorealistic|Every frame|Prefer clear)/i.test(s)) return true;
+    return false;
+  }
+
+  // Strategy 3: Paragraph-separated blocks
+  const paragraphs = text.split(/\r?\n\s*\r?\n/).map(p => p.trim()).filter(Boolean);
+  if (paragraphs.length > 1) {
+    const validParagraphs = [];
+    for (const p of paragraphs) {
+      if (isDocumentMeta(p)) continue;
+      const clean = cleanPromptText(p);
+      if (clean && clean.length > 15) {
+        validParagraphs.push(clean);
+      }
+    }
+    if (validParagraphs.length >= 2) {
+      return validParagraphs;
+    }
+  }
+
+  // Strategy 4: Line by line
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const validLines = [];
+  for (const line of lines) {
+    if (isDocumentMeta(line)) continue;
+    const clean = cleanPromptText(line);
+    if (clean && clean.length > 5) {
+      validLines.push(clean);
+    }
+  }
+  return validLines;
+}
+
+// Mode 2 Clean Prompt List Parser (Universal 10-Style Extractor & Auto-Prefixer)
 async function parseAndImportPrompts(projectId, rawPromptText, qaMetadataMap = {}) {
   const project = await db.get(`SELECT * FROM projects WHERE id = ?`, [projectId]);
   if (!project) throw new Error(`Project ${projectId} not found`);
 
-  // Split into lines or prompt blocks (support array or raw string)
-  const lines = Array.isArray(rawPromptText) 
-    ? rawPromptText.map(l => String(l).trim()).filter(Boolean)
-    : String(rawPromptText || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const extractedStrings = smartUniversalPromptExtractor(rawPromptText);
   const promptEntries = [];
-  const seenIndexes = new Set();
-  const errors = [];
 
-  for (const line of lines) {
-    // Expected format: 001_prompt text... OR 001 prompt text...
-    const match = line.match(/^(\d{3,4})[_\s]+(.+)$/);
-    if (!match) {
-      // Check if it's metadata to reject
-      if (/^(IMAGE|TIMESTAMP|SCENE|PROMPT|NOTE|VISUAL)/i.test(line)) {
-        errors.push(`Header/metadata detected in prompt input: "${line.slice(0, 40)}...". Target clean sequential prompts only.`);
-      } else {
-        errors.push(`Malformed prompt line (must start with numeric ID e.g. 001_...): "${line.slice(0, 40)}..."`);
-      }
-      continue;
-    }
+  for (let i = 0; i < extractedStrings.length; i++) {
+    const indexNum = i + 1;
+    const idStr = String(indexNum).padStart(3, '0');
+    const promptText = extractedStrings[i];
+    const fullLine = `${idStr}_${promptText}`;
 
-    const indexNum = parseInt(match[1], 10);
-    const idStr = match[1].padStart(3, '0');
-    const promptText = match[2].trim();
-
-    if (seenIndexes.has(indexNum)) {
-      errors.push(`Duplicate prompt ID detected: ${idStr}`);
-      continue;
-    }
-
-    seenIndexes.add(indexNum);
     promptEntries.push({
       index: indexNum,
       idStr,
       text: promptText,
-      fullLine: `${idStr}_${promptText}`
+      fullLine
     });
   }
 
-  // Sort sequentially
-  promptEntries.sort((a, b) => a.index - b.index);
-
-  // Check continuity
-  const missingIds = [];
-  if (promptEntries.length > 0) {
-    const minIdx = promptEntries[0].index;
-    const maxIdx = promptEntries[promptEntries.length - 1].index;
-    for (let i = minIdx; i <= maxIdx; i++) {
-      if (!seenIndexes.has(i)) {
-        missingIds.push(String(i).padStart(3, '0'));
-      }
-    }
-  }
-
-  if (missingIds.length > 0) {
-    errors.push(`Gap in prompt numbering! Missing prompt IDs: ${missingIds.slice(0, 10).join(', ')}${missingIds.length > 10 ? '...' : ''}`);
-  }
-
-  if (errors.length > 0) {
+  if (promptEntries.length === 0) {
     return {
       success: false,
-      errors,
-      parsed_count: promptEntries.length
+      errors: ['No valid prompt lines detected in input. Please paste prompt text.'],
+      count: 0
     };
   }
 
@@ -211,6 +273,8 @@ async function parseAndImportPrompts(projectId, rawPromptText, qaMetadataMap = {
   const now = new Date().toISOString();
   await db.exec('BEGIN TRANSACTION;');
   try {
+    await db.run('DELETE FROM prompts WHERE project_id = ?', [projectId]);
+
     for (const p of promptEntries) {
       const promptPk = `prompt_${projectId}_${p.idStr}`;
       const qa = qaMetadataMap[p.idStr] || {};
@@ -220,26 +284,6 @@ async function parseAndImportPrompts(projectId, rawPromptText, qaMetadataMap = {
           status, source_span, scene_desc, characters, objects, location,
           qa_verdict, qa_details, provider, model, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(project_id, prompt_index) DO UPDATE SET
-          id = excluded.id,
-          prompt_text = excluded.prompt_text,
-          prompt_id_str = excluded.prompt_id_str,
-          status = 'QUEUED',
-          file_path = NULL,
-          file_name = NULL,
-          file_size = 0,
-          sha256 = NULL,
-          assigned_worker_id = NULL,
-          source_span = excluded.source_span,
-          scene_desc = excluded.scene_desc,
-          characters = excluded.characters,
-          objects = excluded.objects,
-          location = excluded.location,
-          qa_verdict = excluded.qa_verdict,
-          qa_details = excluded.qa_details,
-          provider = excluded.provider,
-          model = excluded.model,
-          updated_at = excluded.updated_at
       `, [
         promptPk, projectId, p.index, p.idStr, p.fullLine,
         qa.source_span || null,
@@ -255,11 +299,6 @@ async function parseAndImportPrompts(projectId, rawPromptText, qaMetadataMap = {
       ]);
     }
 
-    // Prune excess prompts if previous count was higher than new imported count
-    const maxIndex = Math.max(...promptEntries.map(p => p.index));
-    await db.run(`DELETE FROM prompts WHERE project_id = ? AND prompt_index > ?`, [projectId, maxIndex]);
-
-    // Update target count in project
     await db.run(`UPDATE projects SET target_image_count = ?, updated_at = ? WHERE id = ?`, [promptEntries.length, now, projectId]);
     await db.exec('COMMIT;');
   } catch (err) {
@@ -267,20 +306,43 @@ async function parseAndImportPrompts(projectId, rawPromptText, qaMetadataMap = {
     throw err;
   }
 
-  // Save source.md in project prompts/
   const promptsDir = path.join(project.directory_path, 'prompts');
-  fs.writeFileSync(path.join(promptsDir, 'source.md'), rawPromptText, 'utf8');
-
-  logger.info('PROJECT_MANAGER', `Successfully imported ${promptEntries.length} validated prompts for project ${project.name}`);
+  if (fs.existsSync(promptsDir)) {
+    fs.writeFileSync(path.join(promptsDir, 'source.md'), String(rawPromptText || ''), 'utf8');
+  }
+  logger.info('PROJECT_MANAGER', `Successfully imported ${promptEntries.length} smart-indexed prompts for project ${project.name}`);
   return {
     success: true,
     count: promptEntries.length,
-    first_id: promptEntries[0]?.idStr,
-    last_id: promptEntries[promptEntries.length - 1]?.idStr
+    prompts: promptEntries
   };
 }
 
+async function deleteProject(projectId, purgeFiles = false) {
+  const project = await db.get(`SELECT * FROM projects WHERE id = ?`, [projectId]);
+  if (!project) throw new Error(`Project ${projectId} not found`);
+
+  const now = new Date().toISOString();
+  await db.run(`UPDATE projects SET status = 'DELETED', updated_at = ? WHERE id = ?`, [now, projectId]);
+  await db.run(`DELETE FROM prompts WHERE project_id = ?`, [projectId]);
+  await db.run(`DELETE FROM jobs WHERE project_id = ?`, [projectId]);
+  await db.run(`DELETE FROM captions WHERE project_id = ?`, [projectId]);
+
+  if (purgeFiles && project.directory_path && fs.existsSync(project.directory_path)) {
+    try {
+      fs.rmSync(project.directory_path, { recursive: true, force: true });
+      logger.info('PROJECT_MANAGER', `Purged project folder from disk: ${project.directory_path}`);
+    } catch (e) {
+      logger.warn('PROJECT_MANAGER', `Could not purge project folder: ${e.message}`);
+    }
+  }
+
+  logger.info('PROJECT_MANAGER', `Deleted project ${project.name} (${projectId})`);
+  return { success: true, id: projectId, name: project.name };
+}
+
 module.exports = {
+  deleteProject,
   PROJECTS_ROOT,
   listProjects,
   getProject,

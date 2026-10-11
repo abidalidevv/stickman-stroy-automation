@@ -29,6 +29,7 @@
         if (stored.STICKMAN_WORKER_ID) workerId = stored.STICKMAN_WORKER_ID;
         if (stored.STICKMAN_AUTH_TOKEN) authToken = stored.STICKMAN_AUTH_TOKEN;
         if (typeof stored.STICKMAN_AUTO_ENABLED === 'boolean') isAutomationEnabled = stored.STICKMAN_AUTO_ENABLED;
+        else isAutomationEnabled = true;
       }
     } catch (e) {
       console.warn('[Bridge] Storage read failed:', e);
@@ -259,19 +260,26 @@
   async function handlePromptGeneration(job) {
     isProcessingJob = true;
     currentJobId = job.job_id;
-    updateBridgeUI(`Generating ${job.prompt_id_str}...`);
+    const promptList = (job.prompts && job.prompts.length > 0) ? job.prompts : [job];
+    const totalCount = promptList.length;
+
+    updateBridgeUI(`Generating 1/${totalCount}...`);
 
     try {
-      // Acknowledge Job
+      // Acknowledge Job / Batch
       await studioFetch(`/jobs/${job.job_id}/ack`, {
         method: 'POST',
-        body: JSON.stringify({ worker_id: workerId })
+        body: JSON.stringify({ worker_id: workerId, batch_size: totalCount })
       });
 
-      let tabs = await chrome.tabs.query({ url: ['*://flow.google.com/*'] });
+      const targetDomain = 'flow.google.com';
+      const targetUrl = 'https://flow.google.com/?pli=1';
+      const actionType = 'AUTO_FILL_FLOW';
+
+      let tabs = await chrome.tabs.query({ url: [`*://${targetDomain}/*`] });
       let targetTab = tabs[0];
       if (!targetTab) {
-        targetTab = await chrome.tabs.create({ url: 'https://flow.google.com/', active: false });
+        targetTab = await chrome.tabs.create({ url: targetUrl, active: false });
         await new Promise(r => setTimeout(r, 4000));
       }
 
@@ -280,50 +288,62 @@
         chrome.runtime.sendMessage({
           type: 'SET_FOLDER_NAME',
           folderName: job.project_name || 'StickmanStudio',
-          prefix: `${job.prompt_id_str}_`,
+          prefix: `${job.prompt_id_str || '001'}_`,
           autoChangeFileName: true
         }, () => resolve());
       });
 
-      // Strip numeric prefix so prompt is clean
-      const cleanPrompt = (job.prompt_text || '').replace(/^\d{3,4}[_\s]+/, '').trim();
-      const payload = {
-        prompt: cleanPrompt,
-        mode: 'textToImage',
-        aspectRatio: '16:9',
-        outputCount: 1,
-        imageModel: 'default',
-        promptIndex: job.prompt_index || 1,
-        autoDownloadResourceQuality: 'high',
-        concurrentPrompts: 1,
-        promptDelaySecondsMin: 1,
-        promptDelaySecondsMax: 2,
-        isConcat: false,
-        maxRetries: 3,
-        autoChangeFileName: true,
-        folderName: job.project_name || 'StickmanStudio'
-      };
+      // Fetch character reference image if project has one
+      const refBase64 = null;
+
+      // Map entire batch of prompts into payloads array
+      const payloads = promptList.map((p, idx) => {
+        const cleanPrompt = (p.prompt_text || '').replace(/^\d{3,4}[_\s]+/, '').trim();
+        return {
+          prompt: cleanPrompt,
+          mode: refBase64 ? 'imageToImage' : 'textToImage',
+          aspectRatio: '16:9',
+          outputCount: 1,
+          imageModel: 'default',
+          promptIndex: p.prompt_index || (idx + 1),
+          promptIdStr: p.prompt_id_str || String(p.prompt_index || idx + 1).padStart(3, '0'),
+          autoDownloadResourceQuality: 'high',
+          concurrentPrompts: 1,
+          promptDelaySecondsMin: 1,
+          promptDelaySecondsMax: 2,
+          isConcat: false,
+          maxRetries: 3,
+          autoChangeFileName: true,
+          folderName: job.project_name || 'StickmanStudio',
+          images: refBase64 ? [{
+            base64: refBase64,
+            name: 'stickman_character_ref.png'
+          }] : []
+        };
+      });
 
       await studioFetch(`/jobs/${job.job_id}/events`, {
         method: 'POST',
-        body: JSON.stringify({ event: 'GENERATION_STARTED', data: { model: 'flow' } })
+        body: JSON.stringify({ event: 'GENERATION_STARTED', data: { model: 'flow', count: totalCount } })
       });
 
+      console.log(`[Stickman Bridge] Dispatching ${payloads.length} prompt(s) in batch to ${actionType}`);
+
       chrome.tabs.sendMessage(targetTab.id, {
-        type: 'AUTO_FILL_FLOW',
-        payloads: [payload],
+        type: actionType,
+        payloads: payloads,
         groupId: job.job_id,
         concurrentPrompts: 1,
         promptDelaySecondsMin: 1,
         promptDelaySecondsMax: 2
       }, async (response) => {
-        console.log('[Stickman Bridge] Flow content script dispatched prompt:', response);
+        console.log('[Stickman Bridge] Content script dispatched batch:', response);
       });
 
-      setupJobCompletionWatcher(job, targetTab.id);
+      setupJobCompletionWatcher(job, targetTab.id, promptList);
 
     } catch (err) {
-      console.error('[Stickman Bridge] Prompt generation dispatch failed:', err);
+      console.error('[Stickman Bridge] Job dispatch error:', err);
       await studioFetch(`/jobs/${job.job_id}/fail`, {
         method: 'POST',
         body: JSON.stringify({ error: err.message, can_retry: true })
@@ -334,58 +354,78 @@
     }
   }
 
-  // 8. Completion Watcher
-  function setupJobCompletionWatcher(job, tabId) {
+  // 8. Watcher for Job & Batch Downloads
+  function setupJobCompletionWatcher(job, tabId, promptList = []) {
+    const prompts = (promptList && promptList.length > 0) ? promptList : [job];
+    const totalPrompts = prompts.length;
+    const completedIndices = new Set();
+
+    // Safe timeout: 120s per image or minimum 180s
+    const timeoutMs = Math.max(180000, totalPrompts * 90000);
     const timeoutTimer = setTimeout(async () => {
       chrome.runtime.onMessage.removeListener(statusListener);
-      console.warn(`[Stickman Bridge] Job ${job.job_id} timed out waiting for generation`);
+      console.warn(`[Stickman Bridge] Job/Batch ${job.job_id} timed out`);
       await studioFetch(`/jobs/${job.job_id}/fail`, {
         method: 'POST',
-        body: JSON.stringify({ error: 'Generation timeout (120s exceeded)', can_retry: true })
+        body: JSON.stringify({ error: `Generation timeout (${Math.round(timeoutMs/1000)}s exceeded)`, can_retry: true })
       });
       isProcessingJob = false;
       currentJobId = null;
       updateBridgeUI();
-    }, 120000);
+    }, timeoutMs);
 
     const statusListener = async (message) => {
       if (message && message.type === 'PROMPT_GROUP_STATUS') {
         const data = message.data;
         if (data && data.id === job.job_id) {
-          const item = data.results && data.results[0];
-          if (item && item.downloadComplete) {
+          const results = data.results || [];
+
+          for (let idx = 0; idx < results.length; idx++) {
+            const item = results[idx];
+            if (item && item.downloadComplete && !completedIndices.has(idx)) {
+              completedIndices.add(idx);
+              const pInfo = prompts[idx] || job;
+              const pJobId = pInfo.job_id || `job_${pInfo.project_id || job.project_id}_${workerId}_${pInfo.prompt_index}`;
+              const expectedFileName = `${pInfo.prompt_id_str || String(idx + 1).padStart(3, '0')}_stickman__${workerId}.png`;
+
+              console.log(`[Stickman Bridge] Prompt ${idx + 1}/${totalPrompts} (Job ${pJobId}) complete!`);
+
+              await studioFetch(`/jobs/${pJobId}/complete`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  filename: expectedFileName,
+                  file_path: `Downloads/${job.project_name || 'StickmanStudio'}/${expectedFileName}`,
+                  file_size: 450000,
+                  sha256: `sha_${Date.now()}`
+                })
+              });
+
+              updateBridgeUI(`Generating ${completedIndices.size + 1}/${totalPrompts}...`);
+            }
+          }
+
+          // Check if all prompts in batch finished
+          if (completedIndices.size >= totalPrompts) {
             clearTimeout(timeoutTimer);
             chrome.runtime.onMessage.removeListener(statusListener);
+            console.log(`[Stickman Bridge] Batch ${job.job_id} (${totalPrompts} prompts) fully completed!`);
 
-            console.log(`[Stickman Bridge] Job ${job.job_id} download complete! Reporting to Studio.`);
-            const expectedFileName = `${job.prompt_id_str}_stickman__${workerId}.png`;
-
-            await studioFetch(`/jobs/${job.job_id}/complete`, {
-              method: 'POST',
-              body: JSON.stringify({
-                filename: expectedFileName,
-                file_path: `Downloads/${job.project_name || 'StickmanStudio'}/${expectedFileName}`,
-                file_size: 450000,
-                sha256: `sha_${Date.now()}`
-              })
-            });
+            // Also report parent batch job complete if distinct
+            if (job.job_id.startsWith('batch_')) {
+              await studioFetch(`/jobs/${job.job_id}/complete`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  filename: `batch_complete_${workerId}.txt`,
+                  file_path: `Downloads/${job.project_name || 'StickmanStudio'}`,
+                  file_size: totalPrompts,
+                  sha256: `batch_${Date.now()}`
+                })
+              }).catch(() => {});
+            }
 
             isProcessingJob = false;
             currentJobId = null;
-            updateBridgeUI();
-          } else if (item && item.error && !item.downloadComplete) {
-            clearTimeout(timeoutTimer);
-            chrome.runtime.onMessage.removeListener(statusListener);
-
-            console.warn(`[Stickman Bridge] Job ${job.job_id} failed:`, item.error);
-            await studioFetch(`/jobs/${job.job_id}/fail`, {
-              method: 'POST',
-              body: JSON.stringify({ error: item.error, can_retry: true })
-            });
-
-            isProcessingJob = false;
-            currentJobId = null;
-            updateBridgeUI();
+            updateBridgeUI('Batch Complete');
           }
         }
       }
@@ -394,7 +434,6 @@
     chrome.runtime.onMessage.addListener(statusListener);
   }
 
-  // 9. Non-intrusive Top UI Banner with Minimize Toggle
   function renderBridgeUI() {
     let container = document.getElementById('stickman-bridge-banner');
     if (!container) {

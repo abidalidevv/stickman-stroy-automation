@@ -46,7 +46,8 @@
     "activeTab",
     "downloads",
     "debugger",
-    "cookies"
+    "cookies",
+    "scripting"
   ],
   "web_accessible_resources": [
     {

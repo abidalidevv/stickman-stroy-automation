@@ -229,8 +229,10 @@ class IngestionManager {
       fs.mkdirSync(centralDir, { recursive: true });
     }
 
+    const imagesDir = path.join(project.directory_path, 'images');
     const candidateDirs = [
       centralDir,
+      imagesDir,
       path.join(this.downloadsDir, project.name),
       this.downloadsDir
     ];

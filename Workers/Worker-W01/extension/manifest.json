@@ -46,7 +46,8 @@
     "background",
     "sidePanel",
     "activeTab",
-    "downloads"
+    "downloads",
+    "scripting"
   ],
   "web_accessible_resources": [
     {

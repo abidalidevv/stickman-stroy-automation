@@ -22,7 +22,8 @@ const logger = require('./logger');
 const projectManager = require('./project_manager');
 const fidelityQA = require('./fidelity_qa');
 
-const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
+const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
+const FALLBACK_GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
 const OLLAMA_HOST = 'http://127.0.0.1:11434';
 const CANONICAL_MASTER_PROMPT_PATH = path.resolve(__dirname, '../../master_prompt.md');
 
@@ -32,6 +33,7 @@ const PACING_MULTIPLIERS = {
   '3/4s': 0.75, // 3 images per 4 seconds
   '4/4s': 1.00, // 4 images per 4 seconds (1 per 1s)
   '5/4s': 1.25, // 5 images per 4 seconds
+  'Random': 0.50, // Dynamic Anti-Template pacing (avg 1 image per 2s)
   'Custom': 0.50
 };
 
@@ -40,15 +42,19 @@ class AIStoryEngine {
    * Load canonical Master Prompt from master_prompt.md
    */
   getCanonicalMasterPrompt() {
-    if (fs.existsSync(CANONICAL_MASTER_PROMPT_PATH)) {
-      return fs.readFileSync(CANONICAL_MASTER_PROMPT_PATH, 'utf8');
+    const candidates = [
+      'e:/stickman-video-automation/Old Md files/story to prompts.md',
+      'E:/stickman-video-automation/Old Md files/story to prompts.md',
+      path.resolve(__dirname, '../../Old Md files/story to prompts.md'),
+      CANONICAL_MASTER_PROMPT_PATH,
+      path.resolve(__dirname, '../master_prompt.md')
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        return fs.readFileSync(c, 'utf8');
+      }
     }
-    // Fallback search in parent directory
-    const altPath = path.resolve(__dirname, '../master_prompt.md');
-    if (fs.existsSync(altPath)) {
-      return fs.readFileSync(altPath, 'utf8');
-    }
-    logger.warn('AI_ENGINE', `Canonical master_prompt.md not found at ${CANONICAL_MASTER_PROMPT_PATH}`);
+    logger.warn('AI_ENGINE', 'Canonical master prompt not found, using minimal fallback');
     return '';
   }
 
@@ -187,14 +193,63 @@ Output pure JSON with the keys:
 
     logger.info('AI_ENGINE', `Calling Groq (${modelName}) for ${targetCount} prompts...`);
 
-// Groq call handled with key pool above
-    const parsed = JSON.parse(rawContent);
-
-    if (!parsed.prompts || !Array.isArray(parsed.prompts)) {
-      throw new Error('Groq response did not contain a valid prompts array');
+    const pool = await this.getApiKeyPool();
+    if (!pool || pool.length === 0) {
+      throw new Error('Groq API Key not configured in environment or settings.');
     }
 
-    return parsed;
+    const modelsToTry = [
+      modelName || DEFAULT_GROQ_MODEL,
+      ...FALLBACK_GROQ_MODELS.filter(m => m !== (modelName || DEFAULT_GROQ_MODEL))
+    ];
+
+    let lastError = null;
+    for (const modelToUse of modelsToTry) {
+      for (let attempt = 0; attempt < pool.length; attempt++) {
+        const currentKey = pool[(this._keyCursor || 0) % pool.length];
+        try {
+          logger.info('AI_ENGINE', `Calling Groq API (Model: ${modelToUse}, Key Index: ${this._keyCursor || 0}) for ${targetCount} prompts...`);
+          const groq = new Groq({ apiKey: currentKey });
+          const chatCompletion = await groq.chat.completions.create({
+            messages: [
+              { role: 'system', content: systemInstruction },
+              { role: 'user', content: userPrompt }
+            ],
+            model: modelToUse,
+            temperature: 0.3,
+            response_format: { type: 'json_object' }
+          });
+
+          const rawContent = chatCompletion.choices[0]?.message?.content || '{}';
+          let cleanJson = rawContent.trim();
+          if (cleanJson.startsWith('```')) {
+            cleanJson = cleanJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+          }
+          const parsed = JSON.parse(cleanJson);
+
+          if (!parsed.prompts || !Array.isArray(parsed.prompts)) {
+            throw new Error('Groq response did not contain a valid prompts array');
+          }
+
+          logger.info('AI_ENGINE', `Groq generated ${parsed.prompts.length} prompts using ${modelToUse}`);
+          return parsed;
+        } catch (err) {
+          logger.warn('AI_ENGINE', `Groq attempt failed on model ${modelToUse}: ${err.message}`);
+          lastError = err;
+          const is429 = err.status === 429 || (err.message && err.message.includes('429'));
+          if (is429) {
+            const delayMs = Math.min(8000, 1000 * Math.pow(2, attempt));
+            logger.warn('AI_ENGINE', `Groq 429 Rate Limit encountered. Backing off for ${delayMs}ms before rotating key...`);
+            await new Promise(r => setTimeout(r, delayMs));
+          }
+          const freshPool = await this.getApiKeyPool();
+          if (freshPool && freshPool.length > 0) pool = freshPool;
+          this.rotateApiKey(pool.length);
+        }
+      }
+    }
+
+    throw new Error(`All Groq models and keys failed. Last error: ${lastError ? lastError.message : 'Unknown'}`);
   }
 
   /**
@@ -355,6 +410,7 @@ Generate exactly ${targetCount} sequential stickman prompts (001 to ${String(tar
       first_prompt: importRes.first_id,
       last_prompt: importRes.last_id,
       prompts: generationResult.prompts,
+      raw_prompts_text: rawPromptsText,
       qa_summary: {
         pass: qaResult.pass,
         flagged_count: qaResult.flagged_count,

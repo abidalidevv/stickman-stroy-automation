@@ -69,6 +69,20 @@ function writeLog(level, source, message, context = null) {
 
   fs.appendFile(logFile, line, () => {});
 
+  // Write plain text readable log file for user inspection
+  const textLogDir = path.join(__dirname, '..', 'logs');
+  if (!fs.existsSync(textLogDir)) {
+    try { fs.mkdirSync(textLogDir, { recursive: true }); } catch (e) {}
+  }
+  const textLogFile = path.join(textLogDir, 'studio.log');
+  const readableLine = `[${ts}] [${level.toUpperCase().padEnd(5)}] [${source.padEnd(16)}] ${sanitizedMsg}${sanitizedContext ? ' | ' + JSON.stringify(sanitizedContext) : ''}\n`;
+  fs.appendFile(textLogFile, readableLine, () => {});
+
+  if (level === 'error') {
+    const errorLogFile = path.join(textLogDir, 'studio_errors.log');
+    fs.appendFile(errorLogFile, readableLine, () => {});
+  }
+
   if (dbInstance) {
     try {
       dbInstance.run(

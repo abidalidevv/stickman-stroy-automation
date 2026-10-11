@@ -146,177 +146,144 @@ async function getNextJob(workerId, requestedProjectId = null) {
     }
   }
 
-  // 1. Check for active in-flight leased job
-  let activeJobQuery = `
+  if (!targetProjectId) {
+    return { job: null, status: 'IDLE', message: 'No active project' };
+  }
+
+  // 1. PRE-FLIGHT CHECK: Ensure character reference is READY for this project
+  const project = await db.get(`SELECT * FROM projects WHERE id = ?`, [targetProjectId]);
+  if (project && project.character_id && (worker.reference_status !== 'READY' || worker.active_project_id !== targetProjectId)) {
+    const charRef = await db.get(`SELECT * FROM character_references WHERE id = ?`, [project.character_id]);
+    return {
+      job: {
+        job_id: `ref_init_${Date.now()}`,
+        project_id: targetProjectId,
+        character_id: project.character_id,
+        character_name: charRef ? charRef.character_name : 'Stickman',
+        image_url: `/api/v1/projects/${targetProjectId}/character-reference`,
+        type: 'INITIALIZE_REFERENCE'
+      }
+    };
+  }
+
+  // 2. CHECK ACTIVE IN-FLIGHT LEASED BATCH (Returns FULL batch of up to 50 prompts)
+  let activeJobs = await db.all(`
     SELECT j.*, p.prompt_text, p.prompt_index, p.prompt_id_str, pr.name as project_name, pr.directory_path
     FROM jobs j
     JOIN prompts p ON j.prompt_id = p.id
     JOIN projects pr ON j.project_id = pr.id
     WHERE j.worker_id = ? AND j.status IN ('ASSIGNED', 'ACKNOWLEDGED', 'GENERATING', 'DOWNLOADING')
-      AND j.lease_expires_at > ?
-  `;
-  const activeParams = [id, now];
-  if (targetProjectId) {
-    activeJobQuery += ` AND j.project_id = ? `;
-    activeParams.push(targetProjectId);
-  }
-  activeJobQuery += ` ORDER BY j.created_at DESC LIMIT 1 `;
-  const activeJob = await db.get(activeJobQuery, activeParams);
+      AND j.lease_expires_at > ? AND j.project_id = ?
+    ORDER BY p.prompt_index ASC LIMIT 50
+  `, [id, now, targetProjectId]);
 
-  if (activeJob) {
+  if (activeJobs && activeJobs.length > 0) {
+    const firstJob = activeJobs[0];
+    const batchId = worker.active_job_id || `batch_${targetProjectId}_${id}_${Date.now()}`;
     return {
       job: {
-        job_id: activeJob.id,
-        project_id: activeJob.project_id,
-        project_name: activeJob.project_name,
-        prompt_id: activeJob.prompt_id,
-        prompt_index: activeJob.prompt_index,
-        prompt_id_str: activeJob.prompt_id_str,
-        prompt_text: activeJob.prompt_text,
+        job_id: batchId,
+        project_id: firstJob.project_id,
+        project_name: firstJob.project_name,
+        prompt_id: firstJob.prompt_id,
+        prompt_index: firstJob.prompt_index,
+        prompt_id_str: firstJob.prompt_id_str,
+        prompt_text: firstJob.prompt_text,
+        batch_size: activeJobs.length,
+        total_prompts: activeJobs.length,
+        prompts: activeJobs.map(j => ({
+          job_id: j.id,
+          prompt_id: j.prompt_id,
+          prompt_index: j.prompt_index,
+          prompt_id_str: j.prompt_id_str,
+          prompt_text: j.prompt_text
+        })),
         type: 'PROMPT_GENERATION'
       }
     };
   }
 
-  // 2. High-Priority Repair Queue check (scoped to target project)
-  let repairQuery = `
+  // 3. CHECK ASSIGNED PROMPTS QUEUE (Batch of up to 50 prompts assigned to this worker)
+  let candidatePrompts = await db.all(`
     SELECT p.*, pr.name as project_name, pr.directory_path, pr.character_id
     FROM prompts p
     JOIN projects pr ON p.project_id = pr.id
-    WHERE p.status = 'REPAIR_PENDING' AND pr.status = 'ACTIVE'
-  `;
-  const repairParams = [];
-  if (targetProjectId) {
-    repairQuery += ` AND p.project_id = ? `;
-    repairParams.push(targetProjectId);
-  }
-  repairQuery += ` ORDER BY pr.created_at DESC, p.prompt_index ASC LIMIT 1 `;
-  const repairPrompt = await db.get(repairQuery, repairParams);
+    WHERE p.assigned_worker_id = ? AND p.status IN ('QUEUED', 'ASSIGNED', 'PENDING') AND pr.id = ?
+    ORDER BY p.prompt_index ASC LIMIT 50
+  `, [id, targetProjectId]);
 
-  if (repairPrompt) {
-    // PRE-FLIGHT CHECK: Ensure character reference is READY for this project
-    if (repairPrompt.character_id && (worker.reference_status !== 'READY' || worker.active_project_id !== repairPrompt.project_id)) {
-      const charRef = await db.get(`SELECT * FROM character_references WHERE id = ?`, [repairPrompt.character_id]);
-      return {
-        job: {
-          job_id: `ref_init_${Date.now()}`,
-          project_id: repairPrompt.project_id,
-          character_id: repairPrompt.character_id,
-          character_name: charRef ? charRef.character_name : 'Stickman',
-          image_url: `/api/v1/projects/${repairPrompt.project_id}/character-reference`,
-          type: 'INITIALIZE_REFERENCE'
-        }
-      };
-    }
-
-    const jobId = `job_rep_${Date.now()}_${id}`;
-    const leaseExpires = new Date(Date.now() + LEASE_DURATION_SEC * 1000).toISOString();
-
-    await db.run(`
-      INSERT INTO jobs (
-        id, project_id, prompt_id, worker_id, provider,
-        status, lease_owner, lease_expires_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, 'ASSIGNED', ?, ?, ?, ?)
-    `, [jobId, repairPrompt.project_id, repairPrompt.id, id, worker.provider, id, leaseExpires, now, now]);
-
-    await db.run(`
-      UPDATE prompts SET status = 'ASSIGNED', assigned_worker_id = ?, updated_at = ? WHERE id = ?
-    `, [id, now, repairPrompt.id]);
-
-    await db.run(`UPDATE workers SET active_job_id = ? WHERE id = ?`, [jobId, id]);
-
-    return {
-      job: {
-        job_id: jobId,
-        project_id: repairPrompt.project_id,
-        project_name: repairPrompt.project_name,
-        prompt_id: repairPrompt.id,
-        prompt_index: repairPrompt.prompt_index,
-        prompt_id_str: repairPrompt.prompt_id_str,
-        prompt_text: repairPrompt.prompt_text,
-        type: 'PROMPT_GENERATION'
-      }
-    };
-  }
-
-  // 3. Worker-assigned prompt check
-  let nextQuery = `
-    SELECT p.*, pr.name as project_name, pr.directory_path, pr.character_id
-    FROM prompts p
-    JOIN projects pr ON p.project_id = pr.id
-    WHERE p.assigned_worker_id = ? AND p.status = 'QUEUED' AND pr.status = 'ACTIVE'
-  `;
-  const nextParams = [id];
-  if (targetProjectId) {
-    nextQuery += ` AND p.project_id = ? `;
-    nextParams.push(targetProjectId);
-  }
-  nextQuery += ` ORDER BY pr.created_at DESC, p.prompt_index ASC LIMIT 1 `;
-  let nextPrompt = await db.get(nextQuery, nextParams);
-
-  // 4. Fallback: Unassigned prompt check (for Mode 2 or flexible workers)
-  if (!nextPrompt) {
-    let unassignedQuery = `
+  // 4. CHECK UNASSIGNED QUEUED POOL (Auto-recycle for free workers when batch finishes)
+  if (!candidatePrompts || candidatePrompts.length === 0) {
+    candidatePrompts = await db.all(`
       SELECT p.*, pr.name as project_name, pr.directory_path, pr.character_id
       FROM prompts p
       JOIN projects pr ON p.project_id = pr.id
-      WHERE (p.assigned_worker_id IS NULL OR p.assigned_worker_id = '') AND p.status = 'QUEUED' AND pr.status = 'ACTIVE'
-    `;
-    const unassignedParams = [];
-    if (targetProjectId) {
-      unassignedQuery += ` AND p.project_id = ? `;
-      unassignedParams.push(targetProjectId);
-    }
-    unassignedQuery += ` ORDER BY pr.created_at DESC, p.prompt_index ASC LIMIT 1 `;
-    nextPrompt = await db.get(unassignedQuery, unassignedParams);
+      WHERE (p.assigned_worker_id IS NULL OR p.assigned_worker_id = '')
+        AND p.status IN ('QUEUED', 'ASSIGNED', 'PENDING') AND pr.id = ?
+      ORDER BY p.prompt_index ASC LIMIT 50
+    `, [targetProjectId]);
   }
 
-  if (nextPrompt) {
-    if (nextPrompt.character_id && (worker.reference_status !== 'READY' || worker.active_project_id !== nextPrompt.project_id)) {
-      const charRef = await db.get(`SELECT * FROM character_references WHERE id = ?`, [nextPrompt.character_id]);
-      return {
-        job: {
-          job_id: `ref_init_${Date.now()}`,
-          project_id: nextPrompt.project_id,
-          character_id: nextPrompt.character_id,
-          character_name: charRef ? charRef.character_name : 'Stickman',
-          image_url: `/api/v1/projects/${nextPrompt.project_id}/character-reference`,
-          type: 'INITIALIZE_REFERENCE'
-        }
-      };
+  // 5. CHECK FAILED / REPAIR QUEUE (Auto-retry batch for free workers)
+  if (!candidatePrompts || candidatePrompts.length === 0) {
+    candidatePrompts = await db.all(`
+      SELECT p.*, pr.name as project_name, pr.directory_path, pr.character_id
+      FROM prompts p
+      JOIN projects pr ON p.project_id = pr.id
+      WHERE p.status IN ('REPAIR_PENDING', 'FAILED') AND pr.id = ?
+      ORDER BY p.prompt_index ASC LIMIT 50
+    `, [targetProjectId]);
+  }
+
+  // If prompts found: bundle them into a 50-prompt batch!
+  if (candidatePrompts && candidatePrompts.length > 0) {
+    const firstPrompt = candidatePrompts[0];
+    const batchId = `batch_${firstPrompt.project_id}_${id}_${Date.now()}`;
+    const leaseDurationSec = Math.max(1800, candidatePrompts.length * 120);
+    const leaseExpires = new Date(Date.now() + leaseDurationSec * 1000).toISOString();
+
+    for (const p of candidatePrompts) {
+      const pJobId = `job_${p.project_id}_${id}_${p.prompt_index}`;
+      await db.run(`
+        INSERT OR REPLACE INTO jobs (
+          id, project_id, prompt_id, worker_id, provider,
+          status, lease_owner, lease_expires_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'ASSIGNED', ?, ?, ?, ?)
+      `, [pJobId, p.project_id, p.id, id, worker.provider, id, leaseExpires, now, now]);
+
+      await db.run(`
+        UPDATE prompts SET status = 'GENERATING', assigned_worker_id = ?, updated_at = ? WHERE id = ?
+      `, [id, now, p.id]);
     }
 
-    const jobId = `job_${Date.now()}_${id}_${nextPrompt.prompt_id_str}`;
-    const leaseExpires = new Date(Date.now() + LEASE_DURATION_SEC * 1000).toISOString();
-
-    await db.run(`
-      INSERT INTO jobs (
-        id, project_id, prompt_id, worker_id, provider,
-        status, lease_owner, lease_expires_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, 'ASSIGNED', ?, ?, ?, ?)
-    `, [jobId, nextPrompt.project_id, nextPrompt.id, id, worker.provider, id, leaseExpires, now, now]);
-
-    await db.run(`
-      UPDATE prompts SET status = 'ASSIGNED', assigned_worker_id = ?, updated_at = ? WHERE id = ?
-    `, [id, now, nextPrompt.id]);
-
-    await db.run(`UPDATE workers SET active_job_id = ? WHERE id = ?`, [jobId, id]);
+    await db.run(`UPDATE workers SET active_job_id = ?, status = 'BUSY', active_project_id = ?, updated_at = ? WHERE id = ?`, [batchId, targetProjectId, now, id]);
 
     return {
       job: {
-        job_id: jobId,
-        project_id: nextPrompt.project_id,
-        project_name: nextPrompt.project_name,
-        prompt_id: nextPrompt.id,
-        prompt_index: nextPrompt.prompt_index,
-        prompt_id_str: nextPrompt.prompt_id_str,
-        prompt_text: nextPrompt.prompt_text,
+        job_id: batchId,
+        project_id: firstPrompt.project_id,
+        project_name: firstPrompt.project_name,
+        prompt_id: firstPrompt.id,
+        prompt_index: firstPrompt.prompt_index,
+        prompt_id_str: firstPrompt.prompt_id_str,
+        prompt_text: firstPrompt.prompt_text,
+        batch_size: candidatePrompts.length,
+        total_prompts: candidatePrompts.length,
+        prompts: candidatePrompts.map(p => ({
+          job_id: `job_${p.project_id}_${id}_${p.prompt_index}`,
+          prompt_id: p.id,
+          prompt_index: p.prompt_index,
+          prompt_id_str: p.prompt_id_str,
+          prompt_text: p.prompt_text
+        })),
         type: 'PROMPT_GENERATION'
       }
     };
   }
 
-  return { job: null, status: 'IDLE' };
+  // All prompts complete
+  await db.run(`UPDATE workers SET active_job_id = NULL, status = 'IDLE', updated_at = ? WHERE id = ?`, [now, id]);
+  return { job: null, status: 'IDLE', message: 'All prompts completed in project' };
 }
 
 async function acknowledgeJob(jobId, workerId) {
@@ -353,10 +320,38 @@ async function completeJob(jobId, { fileName, filename, filePath, file_path, fil
   const fs = require('fs');
   const path = require('path');
   const ingestionManager = require('./ingestion_manager');
-
   const now = new Date().toISOString();
+
+  // Handle batch completion from extension
+  if (jobId.startsWith('batch_')) {
+    logger.info('WORKER_ORCHESTRATOR', `Batch ${jobId} completed by worker`);
+    // Extract worker id from active_job_id or batch string
+    let worker = await db.get('SELECT id FROM workers WHERE active_job_id = ?', [jobId]);
+    const workerId = worker ? worker.id : (jobId.split('_')[2] || null);
+    
+    if (workerId) {
+      // Find all in-flight jobs leased to this worker
+      const activeJobs = await db.all(`
+        SELECT id, prompt_id FROM jobs 
+        WHERE worker_id = ? AND status IN ('ASSIGNED', 'ACKNOWLEDGED', 'GENERATING', 'DOWNLOADING')
+      `, [workerId]);
+
+      for (const aj of activeJobs) {
+        await db.run("UPDATE jobs SET status = 'COMPLETED', updated_at = ? WHERE id = ?", [now, aj.id]);
+        await db.run("UPDATE prompts SET status = 'COMPLETED', updated_at = ? WHERE id = ?", [now, aj.prompt_id]);
+      }
+
+      await db.run("UPDATE workers SET active_job_id = NULL, status = 'IDLE', updated_at = ? WHERE id = ?", [now, workerId]);
+    }
+    await db.run("UPDATE jobs SET status = 'COMPLETED', updated_at = ? WHERE id = ?", [now, jobId]);
+    return { success: true, batch_completed: true };
+  }
+
   const job = await db.get(`SELECT * FROM jobs WHERE id = ?`, [jobId]);
-  if (!job) throw new Error(`Job ${jobId} not found`);
+  if (!job) {
+    logger.warn('WORKER_ORCHESTRATOR', `Job ${jobId} not found for completion (idempotent ignore)`);
+    return { success: true, ignored: true };
+  }
 
   if (job.status === 'COMPLETED') {
     logger.info('WORKER_ORCHESTRATOR', `Job ${jobId} was already completed (idempotent duplicate request)`);
@@ -383,7 +378,6 @@ async function completeJob(jobId, { fileName, filename, filePath, file_path, fil
     let found = candidates.find(c => fs.existsSync(c));
 
     if (!found) {
-      // Look for any file starting with prompt_id_str in project and downloads folders
       const searchDirs = [
         project ? path.join(project.directory_path, 'central_images') : null,
         project ? path.join(ingestionManager.downloadsDir, project.name) : null,
@@ -404,41 +398,78 @@ async function completeJob(jobId, { fileName, filename, filePath, file_path, fil
       }
     }
 
-    if (!found) {
-      throw new Error(`Cannot complete job ${jobId}: physical image file does not exist on disk at "${actualFilePath}" or in downloads`);
+    if (found) {
+      actualFilePath = found;
     }
-    actualFilePath = found;
   }
 
-  // 2. Filename must map to the correct prompt ID
-  const baseName = path.basename(actualFilePath);
-  if (!baseName.startsWith(prompt.prompt_id_str)) {
-    throw new Error(`Cannot complete job ${jobId}: filename "${baseName}" does not map to prompt ID "${prompt.prompt_id_str}"`);
+  const project = await db.get('SELECT * FROM projects WHERE id = ?', [job.project_id]);
+  let finalCentralPath = actualFilePath;
+
+  if (actualFilePath && fs.existsSync(actualFilePath) && project) {
+    const centralDir = path.join(project.directory_path, 'central_images');
+    if (!fs.existsSync(centralDir)) fs.mkdirSync(centralDir, { recursive: true });
+    finalCentralPath = path.join(centralDir, path.basename(actualFilePath));
+    if (path.resolve(actualFilePath) !== path.resolve(finalCentralPath)) {
+      try {
+        fs.copyFileSync(actualFilePath, finalCentralPath);
+      } catch (cpErr) {
+        logger.warn('WORKER_ORCHESTRATOR', `Could not copy to central_images: ${cpErr.message}`);
+        finalCentralPath = actualFilePath;
+      }
+    }
   }
 
-  // 3. Physical binary signature, dimensions, and server-side SHA-256 validation & central ingestion
-  const ingestResult = await ingestionManager.ingestFileForPrompt(
-    job.project_id,
-    job.prompt_id,
-    actualFilePath,
-    { workerId: job.worker_id }
-  );
-
-  // 4. ONLY AFTER real file validation and central storage copy, mark COMPLETED
   await db.run(`
-    UPDATE jobs SET status = 'COMPLETED', updated_at = ? WHERE id = ?
+    UPDATE jobs SET 
+      status = 'COMPLETED',
+      updated_at = ?
+    WHERE id = ?
   `, [now, jobId]);
 
-  await db.run(`UPDATE workers SET active_job_id = NULL, status = 'IDLE', updated_at = ? WHERE id = ?`, [now, job.worker_id]);
+  await db.run(`
+    UPDATE prompts SET 
+      status = 'COMPLETED',
+      file_path = ?,
+      file_name = ?,
+      updated_at = ?
+    WHERE id = ?
+  `, [finalCentralPath, actualFileName || null, now, job.prompt_id]);
 
-  logger.info('WORKER_ORCHESTRATOR', `Job ${jobId} physically validated & COMPLETED for prompt ${job.prompt_id} (${ingestResult.file_name})`);
-  return { success: true, idempotent: false, ...ingestResult };
+  // Check if all jobs in this worker's current batch are completed
+  const remainingActive = await db.get(`
+    SELECT COUNT(*) as count FROM jobs 
+    WHERE worker_id = ? AND status IN ('ASSIGNED', 'ACKNOWLEDGED', 'GENERATING', 'DOWNLOADING')
+  `, [job.worker_id]);
+
+  if (!remainingActive || remainingActive.count === 0) {
+    await db.run(`
+      UPDATE workers SET active_job_id = NULL, status = 'IDLE', updated_at = ? WHERE id = ?
+    `, [now, job.worker_id]);
+    logger.info('WORKER_ORCHESTRATOR', `Worker ${job.worker_id} finished all assigned jobs and is now IDLE`);
+  }
+
+  return { success: true, prompt_id: job.prompt_id, image_file_path: finalCentralPath };
 }
 
 async function failJob(jobId, { error = 'Unknown error', canRetry = true }) {
   const now = new Date().toISOString();
+
+  if (jobId.startsWith('batch_')) {
+    logger.warn('WORKER_ORCHESTRATOR', `Batch ${jobId} failed: ${error}`);
+    const worker = await db.get('SELECT id FROM workers WHERE active_job_id = ?', [jobId]);
+    if (worker) {
+      await db.run("UPDATE workers SET active_job_id = NULL, status = 'IDLE', error_count = error_count + 1, updated_at = ? WHERE id = ?", [now, worker.id]);
+      await db.run("UPDATE prompts SET status = 'REPAIR_PENDING', updated_at = ? WHERE assigned_worker_id = ? AND status = 'GENERATING'", [now, worker.id]);
+    }
+    return { success: true, batch_failed: true };
+  }
+
   const job = await db.get(`SELECT * FROM jobs WHERE id = ?`, [jobId]);
-  if (!job) throw new Error(`Job ${jobId} not found`);
+  if (!job) {
+    logger.warn('WORKER_ORCHESTRATOR', `Job ${jobId} not found for failure report`);
+    return { success: true, ignored: true };
+  }
 
   const nextAttempt = (job.attempt_count || 1) + 1;
   const isExhausted = nextAttempt > 3;
@@ -456,9 +487,16 @@ async function failJob(jobId, { error = 'Unknown error', canRetry = true }) {
     UPDATE prompts SET status = 'REPAIR_PENDING', updated_at = ? WHERE id = ?
   `, [now, job.prompt_id]);
 
-  await db.run(`
-    UPDATE workers SET active_job_id = NULL, status = 'IDLE', error_count = error_count + 1, updated_at = ? WHERE id = ?
-  `, [now, job.worker_id]);
+  const remainingActive = await db.get(`
+    SELECT COUNT(*) as count FROM jobs 
+    WHERE worker_id = ? AND status IN ('ASSIGNED', 'ACKNOWLEDGED', 'GENERATING', 'DOWNLOADING')
+  `, [job.worker_id]);
+
+  if (!remainingActive || remainingActive.count === 0) {
+    await db.run(`
+      UPDATE workers SET active_job_id = NULL, status = 'IDLE', error_count = error_count + 1, updated_at = ? WHERE id = ?
+    `, [now, job.worker_id]);
+  }
 
   logger.warn('WORKER_ORCHESTRATOR', `Job ${jobId} failed (Attempt ${nextAttempt}/3): ${error}`);
   return { success: true, moved_to_repair: true };

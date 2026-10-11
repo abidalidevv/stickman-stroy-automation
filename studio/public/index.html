@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bangers&family=Bebas+Neue&family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800;900&family=Luckiest+Guy&family=Montserrat:ital,wght@0,700;0,800;0,900;1,900&family=Oswald:wght@700&family=Outfit:wght@600;700;800;900&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles_v2.css">
+  <link rel="stylesheet" href="/styles_v2.css?v=2.2">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='28'>🎬</text></svg>">
 </head>
 <body>
@@ -61,7 +61,8 @@
           <select id="projectSelector" class="project-select" onchange="onSelectProject(this.value)">
             <option value="">Select Project...</option>
           </select>
-          <button class="btn btn-secondary" onclick="openNewProjectModal()" style="padding: 6px 12px; font-size: 12px;">+ New Project</button>
+          <button type="button" class="btn btn-secondary" onclick="openNewProjectModal()" style="padding: 6px 12px; font-size: 12px;" title="Create New Project">+ New</button>
+          <button type="button" class="btn btn-rose" onclick="deleteCurrentProject()" style="padding: 6px 10px; font-size: 12px;" title="Delete Selected Project">&#x1F5D1;&#xFE0F;</button>
         </div>
 
         <a href="/documentation.html" target="_blank" class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;" title="Open Documentation Manual">📖 Docs</a>
@@ -150,7 +151,7 @@
           <span class="stepper-num">5</span>
           <div class="stepper-info">
             <span class="stepper-title">🎥 Render & Export</span>
-            <span class="stepper-sub">1080p MP4 Video Pipeline</span>
+            <span class="stepper-sub">4K Ultra HD & 1080p Pipeline</span>
           </div>
         </button>
 
@@ -170,89 +171,213 @@
     <main class="main-container">
 
       <!-- ==================== STEP 1: STORY & PROMPTS ==================== -->
-      <section id="step-1-panel" class="view-panel active">
-        
-        <!-- Sub Tabs to switch between Mode 1, Mode 2, and Prompts Queue -->
-        <div class="sub-tabs-bar">
-          <button id="subTabMode1" class="sub-tab-btn active" onclick="switchStep1SubTab('mode1')">
-            <span>✨</span> Mode 1: Groq AI Story Engine
-          </button>
-          <button id="subTabMode2" class="sub-tab-btn" onclick="switchStep1SubTab('mode2')">
-            <span>📋</span> Mode 2: Clean Prompt List Importer
-          </button>
-          <button id="subTabPromptsQueue" class="sub-tab-btn" onclick="switchStep1SubTab('queue')">
-            <span>📑</span> Project Prompts Queue (<span id="promptsSubTabCount">0</span>)
-          </button>
-        </div>
+        <section id="step-1-panel" class="view-panel active">
+          
+          <!-- Sub Tabs to switch between Mode 1 (Importer), Mode 2 (Groq AI), and Prompts Queue -->
+          <div class="sub-tabs-bar">
+            <button id="subTabMode1" class="sub-tab-btn active" onclick="switchStep1SubTab('mode1')">
+              <span>📋</span> Mode 1: Clean Prompt List Importer
+            </button>
+            <button id="subTabMode2" class="sub-tab-btn" onclick="switchStep1SubTab('mode2')">
+              <span>⚡</span> Mode 2: Groq AI Story Engine
+            </button>
+            <button id="subTabPromptsQueue" class="sub-tab-btn" onclick="switchStep1SubTab('queue')">
+              <span>📑</span> Project Prompts Queue (<span id="promptsSubTabCount">0</span>)
+            </button>
+          </div>
 
-        <!-- SUB VIEW A: MODE 1 GROQ AI STORY ENGINE -->
-        <div id="subViewMode1" class="sub-view-content">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="card-icon">✨</div>
-                <div>
-                  <div class="card-title">Mode 1: Groq AI Story Engine</div>
-                  <div class="card-subtitle">Generate complete sequential stickman prompts from story script with character consistency</div>
+          <!-- SUB VIEW A: MODE 1 CLEAN PROMPT LIST IMPORTER (NOW DEFAULT / 1ST) -->
+          <div id="subViewMode1" class="sub-view-content" style="display: block;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-group">
+                  <div class="card-icon">📋</div>
+                  <div>
+                    <div class="card-title">Mode 1: Clean Prompt List Importer</div>
+                    <div class="card-subtitle">Import sequential 001_... formatted prompt lists directly into the production database</div>
+                  </div>
                 </div>
-              </div>
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <span id="m1PromptEstimateBadge" class="brand-badge">~54 prompts</span>
-                <button class="btn btn-secondary" onclick="loadDefaultMasterPrompt()" style="font-size: 11.5px; padding: 6px 12px;">Reset Master Prompt V7</button>
-              </div>
-            </div>
-
-            <!-- Video Title & Model -->
-            <div class="grid-2">
-              <div class="form-group">
-                <label class="form-label">Video Title</label>
-                <input type="text" id="m1VideoTitle" class="form-input" placeholder="e.g. The Untold Story of the Stickman Kingdom" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Groq AI Model</label>
                 <div style="display: flex; gap: 8px;">
-                  <select id="m1ModelSelect" class="form-select" style="flex: 1;"></select>
-                  <button class="btn btn-secondary" onclick="saveModelConfig()" style="font-size: 12px; padding: 6px 12px;">Save Model</button>
+                  <input type="file" id="m2FileInput" accept=".txt,.md,.json" style="display: none;" onchange="handleM2FileUpload(this)" />
+                  <button class="btn btn-secondary" onclick="document.getElementById('m2FileInput').click()" style="font-size: 12px; padding: 6px 12px;" title="Upload a text or markdown file containing your pre-written prompt list">
+                    📁 Import Prompts from File (.txt / .md)
+                  </button>
                 </div>
+              </div>
+
+              <!-- Mode 1 Audio & Matching Voiceover Sync -->
+              <div style="background: rgba(10, 14, 24, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 18px;">
+                <div style="font-size: 12px; font-weight: 800; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
+                  🎙️ Matching Voiceover Audio & BGM
+                </div>
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Voiceover Audio File / Path</label>
+                    <div style="display: flex; gap: 8px;">
+                      <input type="file" id="m2VoiceoverFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleM2VoiceoverFile(this)" />
+                      <input type="hidden" id="m2VoiceoverPath" /><div id="m2VoiceoverStatus" class="file-picked-chip" style="display: none;"></div>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Duration & Auto-Detection</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                      <button type="button" class="btn btn-secondary" onclick="autoDetectM2Voiceover()" style="white-space: nowrap; font-size: 12px; padding: 8px 12px;">
+                        ⚡ Auto-Detect
+                      </button>
+                      <input type="number" id="m2Duration" class="form-input" value="72" step="0.5" style="width: 100px;" />
+                      <span id="m2DurationBadge" class="brand-badge" style="white-space: nowrap;">72.0s</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid-2" style="margin-top: 10px;">
+                  <div class="form-group">
+                    <label class="form-label">Pacing Preset</label>
+                    <select id="m2Pacing" class="form-select">
+                      <option value="Random" selected>🎲 Random / Dynamic (Anti-Template YouTube Pacing)</option>
+                      <option value="3/4s">3 images / 4 sec (0.75x - Dynamic Story Recommended)</option>
+                      <option value="2/4s">2 images / 4 sec (0.50x - YouTube Standard)</option>
+                      <option value="1/4s">1 image / 4 sec (0.25x - Cinematic)</option>
+                      <option value="4/4s">4 images / 4 sec (1.00x - Fast-Paced)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">
+                      BGM Volume: <span id="m2MusicVolLabel" style="color: var(--cyan); font-weight: 700;">7%</span>
+                    </label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                      <input type="hidden" id="m2MusicPath" />
+                      <input type="range" id="m2MusicVol" min="0" max="100" value="7" style="width: 90px;" oninput="document.getElementById('m2MusicVolLabel').textContent = this.value + '%'" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Live Audio Forecast Card Mode 1 -->
+                <div class="audio-forecast-card" id="m2ForecastCard">
+                  <div class="forecast-item">
+                    <span class="forecast-title">Audio Duration</span>
+                    <span class="forecast-value text-emerald" id="m2ForecastDur">72.0s</span>
+                  </div>
+                  <div class="forecast-arrow">→</div>
+                  <div class="forecast-item">
+                    <span class="forecast-title">Pacing Rule</span>
+                    <span class="forecast-value" id="m2ForecastPacing">🎲 Dynamic Anti-Template (~2.00s/img)</span>
+                  </div>
+                  <div class="forecast-arrow">→</div>
+                  <div class="forecast-item highlight">
+                    <span class="forecast-title">Expected Prompts</span>
+                    <span class="forecast-value" id="m2ForecastCount">36 Prompts Expected</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Mode 1 Character Reference & Visual Consistency -->
+              <div style="background: rgba(10, 14, 24, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 18px;">
+                <div style="font-size: 12px; font-weight: 800; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
+                  🎭 Character Reference & Visual Consistency
+                </div>
+
+                <div class="char-ref-card" style="margin-bottom: 14px;">
+                  <div class="char-ref-thumb-box" id="step1M1CharThumbBox">
+                    <span id="step1M1CharPlaceholder" class="char-ref-placeholder">🎭</span>
+                    <img id="step1M1CharThumb" class="char-ref-thumb-img" alt="Character Reference" />
+                  </div>
+                  <div class="char-ref-meta">
+                    <div class="char-ref-name">Character Consistency Reference Image</div>
+                    <div class="char-ref-status" id="step1M1CharStatusText">Pick reference image to lock character appearance across all scenes</div>
+                    <div style="display: flex; gap: 8px; margin-top: 6px;">
+                      <input type="file" id="step1M1CharFile" accept="image/*" style="display: none;" onchange="handleStep1M1CharImage(this)" />
+                      <button type="button" class="btn btn-secondary" onclick="document.getElementById('step1M1CharFile').click()" style="font-size: 11.5px; padding: 6px 12px; cursor: pointer;">
+                        📁 Pick Reference Image
+                      </button>
+                      <button type="button" class="btn btn-secondary" id="step1M1CharRemoveBtn" onclick="removeStep1M1CharImage()" style="font-size: 11.5px; padding: 6px 10px; display: none; color: var(--rose); cursor: pointer;">
+                        ✕ Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Character Name</label>
+                    <input type="text" id="step1M1CharName" class="form-input" value="Main Stickman" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Character Visual Consistency Prompt Tags</label>
+                    <input type="text" id="step1M1CharDesc" class="form-input" placeholder="e.g. Minimalist stickman hero wearing red headband and blue sneakers, black ink outlines" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Prompts Input Textarea -->
+              <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <label class="form-label" style="margin-bottom: 0;">Paste Prompts (Any Format: Markdown / Plain / Numbered / 001_ Prefix)</label>
+                  <span id="m2PromptCountBadge" class="brand-badge">0 prompts</span>
+                </div>
+                <textarea id="rawPromptsInput" class="form-textarea" placeholder="Paste prompts in ANY format (Plain paragraphs, Markdown prompt packs, 001_ prefix, 1. lists, or Scene 1:)...&#10;Studio automatically detects, extracts, cleans, and numbers all prompts sequentially with zero errors!" style="min-height: 220px;" oninput="updateM2PromptCount()"></textarea>
+              </div>
+
+              <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <button type="button" id="btnM1StartGenerating" class="btn btn-emerald" onclick="startMode1Generating()" style="padding: 13px 28px; font-size: 15px; font-weight: 800; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <span>🚀</span> Start Generating (1-Click Fleet Launch)
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="importRawPrompts()" style="padding: 13px 20px; font-size: 13px; font-weight: 700; cursor: pointer;">
+                  ✔ Validate & Import Only
+                </button>
               </div>
             </div>
+          </div>
 
-            <!-- Audio Director: Voiceover & Background Music (7%) -->
-            <div style="background: rgba(10, 14, 24, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div style="font-size: 12px; font-weight: 800; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.5px;">
-                  🎙️ Voiceover Audio & Background Music Director
-                </div>
-                <span id="m1AudioStatusBadge" class="brand-badge" style="background: rgba(0, 240, 255, 0.1); color: var(--cyan);">Duration Synced</span>
-              </div>
-
-              <div class="grid-2">
-                <div class="form-group">
-                  <label class="form-label">Voiceover Audio File / Path</label>
-                  <div style="display: flex; gap: 8px;">
-                    <input type="file" id="m1VoiceoverFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleM1VoiceoverFile(this)" />
-                    <input type="hidden" id="m1VoiceoverPath" /><div id="m1VoiceoverStatus" class="file-picked-chip" style="display: none;"></div>
+          <!-- SUB VIEW B: MODE 2 GROQ AI STORY ENGINE (NOW 2ND SUB-TAB) -->
+          <div id="subViewMode2" class="sub-view-content" style="display: none;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-group">
+                  <div class="card-icon">⚡</div>
+                  <div>
+                    <div class="card-title">Mode 2: Groq AI Story Engine</div>
+                    <div class="card-subtitle">Generate complete sequential stickman prompts from story script with character consistency</div>
                   </div>
                 </div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <span class="brand-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald); border-color: rgba(16, 185, 129, 0.3);">⚡ Groq: llama-3.3-70b (Auto Fallbacks)</span>
+                  <span id="m1PromptEstimateBadge" class="brand-badge">~683 stickman prompts</span>
+                  <select id="m1ModelSelect" style="display: none;"></select>
+                </div>
+              </div>
 
-                <div class="form-group">
-                  <label class="form-label">Duration (Seconds) & Auto-Detection</label>
+              <!-- Row 1: Video Title (Left) + Voiceover Audio File & Auto Duration (Right) -->
+              <div class="grid-2" style="margin-bottom: 14px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Video Title</label>
+                  <input type="text" id="m1VideoTitle" class="form-input" placeholder="e.g. The Untold Story of the Stickman Kingdom" />
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Voiceover Audio File / Path</span>
+                    <span id="m1DurationBadge" class="brand-badge" style="white-space: nowrap; font-size: 11px; padding: 2px 8px; color: var(--emerald); border-color: rgba(16, 185, 129, 0.3);">Auto Duration Ready</span>
+                  </label>
                   <div style="display: flex; gap: 8px; align-items: center;">
-                    <button type="button" class="btn btn-secondary" onclick="autoDetectM1Voiceover()" style="white-space: nowrap; font-size: 12px; padding: 8px 12px;">
-                      ⚡ Auto-Detect
-                    </button>
-                    <input type="number" id="m1Duration" class="form-input" value="72" step="0.5" oninput="updateM1PromptEstimate()" style="width: 110px;" />
-                    <span id="m1DurationBadge" class="brand-badge" style="white-space: nowrap;">72.0s</span>
+                    <input type="file" id="m1VoiceoverFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleM1VoiceoverFile(this)" />
+                    <input type="hidden" id="m1VoiceoverPath" />
+                    <input type="number" id="m1Duration" class="form-input" value="72" step="0.5" oninput="updateM1PromptEstimate()" style="width: 85px; text-align: center;" title="Voiceover Duration (Seconds)" />
+                    <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">sec</span>
                   </div>
+                  <div id="m1VoiceoverStatus" class="file-picked-chip" style="display: none; margin-top: 6px;"></div>
                 </div>
               </div>
 
-              <div class="grid-3" style="margin-top: 10px;">
-                <div class="form-group">
-                  <label class="form-label">Pacing Preset (3/4s Recommended)</label>
+              <!-- Row 2: Pacing (Left) + Background Music (Middle) + BGM Volume (Right) -->
+              <div class="grid-3" style="margin-bottom: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Pacing Rhythm</label>
                   <select id="m1Pacing" class="form-select" onchange="updateM1PromptEstimate()">
-                    <option value="3/4s" selected>3 images / 4 sec (0.75x - Dynamic Story)</option>
+                    <option value="Random" selected>🎲 Random / Dynamic (Anti-Template YouTube Pacing)</option>
+                    <option value="3/4s">3 images / 4 sec (0.75x - Dynamic Story)</option>
                     <option value="2/4s">2 images / 4 sec (0.50x - YouTube Standard)</option>
                     <option value="1/4s">1 image / 4 sec (0.25x - Relaxed / Cinematic)</option>
                     <option value="4/4s">4 images / 4 sec (1.00x - Fast-Paced Action)</option>
@@ -260,24 +385,26 @@
                   </select>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" style="margin-bottom: 0;">
                   <label class="form-label">Background Music (Optional)</label>
                   <div style="display: flex; gap: 8px;">
-                    <input type="file" id="m1MusicFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleM1MusicFile(this)" />
-                    <input type="hidden" id="m1MusicPath" /><div id="m1MusicStatus" class="file-picked-chip" style="display: none;"></div>
+                    <input type="file" id="m1MusicFile" accept="audio/*" class="form-input" style="flex: 1; padding: 6px 10px;" onchange="handleM1MusicFile(this)" />
+                    <input type="hidden" id="m1MusicPath" />
                   </div>
+                  <div id="m1MusicStatus" class="file-picked-chip" style="display: none; margin-top: 4px;"></div>
                 </div>
 
-                <div class="form-group">
-                  <label class="form-label">
-                    BGM Volume: <span id="m1MusicVolLabel" style="color: var(--cyan); font-weight: 700;">7% (Default ducking)</span>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" style="display: flex; justify-content: space-between;">
+                    <span>BGM Volume</span>
+                    <span id="m1MusicVolLabel" style="color: var(--cyan); font-weight: 700;">7% (Auto-Ducked)</span>
                   </label>
-                  <input type="range" id="m1MusicVol" min="0" max="100" value="7" class="form-input" style="padding: 4px 0;" oninput="updateM1MusicVolume(this.value)" />
+                  <input type="range" id="m1MusicVol" min="0" max="100" value="7" class="form-input" style="padding: 4px 0; height: 38px;" oninput="updateM1MusicVolume(this.value)" />
                 </div>
               </div>
 
-              <!-- Live Audio Pacing & Generation Forecast Card -->
-              <div class="audio-forecast-card" id="m1ForecastCard">
+              <!-- Live Audio Pacing & Generation Forecast Banner -->
+              <div class="audio-forecast-card" id="m1ForecastCard" style="margin-bottom: 18px;">
                 <div class="forecast-item">
                   <span class="forecast-title">Audio Duration</span>
                   <span class="forecast-value text-emerald" id="m1ForecastDur">72.0s</span>
@@ -285,234 +412,186 @@
                 <div class="forecast-arrow">→</div>
                 <div class="forecast-item">
                   <span class="forecast-title">Pacing Rule</span>
-                  <span class="forecast-value" id="m1ForecastPacing">3 imgs / 4s (1.33s/image)</span>
+                  <span class="forecast-value" id="m1ForecastPacing">🎲 Dynamic Anti-Template (~2.00s/img)</span>
                 </div>
                 <div class="forecast-arrow">→</div>
                 <div class="forecast-item highlight">
                   <span class="forecast-title">Target Generation</span>
-                  <span class="forecast-value" id="m1ForecastCount">54 Prompts &amp; 54 Images</span>
+                  <span class="forecast-value" id="m1ForecastCount">36 Scenes (36 Prompts &amp; 36 Images)</span>
                 </div>
               </div>
-            </div>
 
-            <!-- Character Reference Consistency Box -->
-            <div style="background: rgba(10, 14, 24, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
-              <div style="font-size: 12px; font-weight: 800; color: var(--violet); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <span>🎭 Character Reference &amp; Visual Consistency</span>
-                <span id="m1CharBadge" class="brand-badge" style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd;">Consistency Active</span>
-              </div>
-
-              <div class="char-ref-picker-card" style="margin-bottom: 14px;">
-                <div class="char-ref-thumb-box" id="m1CharThumbBox">
-                  <span class="char-ref-thumb-placeholder" id="m1CharPlaceholder">🎭</span>
-                  <img id="m1CharThumb" class="char-ref-thumb-img" alt="Character Reference" />
+              <!-- Character Reference Consistency Box -->
+              <div style="background: rgba(10, 14, 24, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 18px;">
+                <div style="font-size: 12px; font-weight: 800; color: var(--violet); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                  <span>🎭 Character Reference &amp; Visual Consistency</span>
+                  <span id="m1CharBadge" class="brand-badge" style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd;">Consistency Active</span>
                 </div>
-                <div class="char-ref-meta">
-                  <div class="char-ref-name">Character Visual Consistency Reference Image</div>
-                  <div class="char-ref-status" id="m1CharStatusText">Pick reference image to lock character appearance across all scenes</div>
-                  <div style="display: flex; gap: 8px; margin-top: 6px;">
-                    <input type="file" id="m1CharFile" accept="image/*" style="display: none;" onchange="handleM1CharFile(this)" />
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('m1CharFile').click()" style="font-size: 11.5px; padding: 6px 14px; cursor: pointer;">
-                      🖼️ Pick Reference Image
-                    </button>
-                    <button type="button" class="btn btn-secondary" id="m1CharRemoveBtn" onclick="removeM1CharImage()" style="font-size: 11.5px; padding: 6px 12px; display: none; color: var(--rose); cursor: pointer;">
-                      ✖ Remove
-                    </button>
+
+                <div class="char-ref-picker-card" style="margin-bottom: 8px;">
+                  <div class="char-ref-thumb-box" id="m1CharThumbBox">
+                    <span class="char-ref-thumb-placeholder" id="m1CharPlaceholder">🎭</span>
+                    <img id="m1CharThumb" class="char-ref-thumb-img" alt="Character Reference" />
+                  </div>
+                  <div class="char-ref-meta">
+                    <div class="char-ref-name">Stickman Protagonist Reference Image</div>
+                    <div class="char-ref-status" id="m1CharStatusText">Upload or pick reference image to lock character appearance and linework across all scenes</div>
+                    <div style="display: flex; gap: 8px; margin-top: 6px;">
+                      <input type="file" id="m1CharFile" accept="image/*" style="display: none;" onchange="handleM1CharFile(this)" />
+                      <button type="button" class="btn btn-secondary" onclick="document.getElementById('m1CharFile').click()" style="font-size: 11.5px; padding: 6px 14px; cursor: pointer;">
+                        🖼️ Pick Reference Image
+                      </button>
+                      <button type="button" class="btn btn-secondary" id="m1CharRemoveBtn" onclick="removeM1CharImage()" style="font-size: 11.5px; padding: 6px 12px; display: none; color: var(--rose); cursor: pointer;">
+                        ✕ Remove
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                <details style="margin-top: 8px; background: rgba(0,0,0,0.25); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); padding: 10px 14px;">
+                  <summary style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); cursor: pointer;">
+                    ⚙️ Advanced Character Details (Optional - Pre-filled Stickman Defaults)
+                  </summary>
+                  <div style="margin-top: 10px;">
+                    <div class="grid-2">
+                      <div class="form-group">
+                        <label class="form-label">Character Name</label>
+                        <input type="text" id="m1CharacterName" class="form-input" value="Main Stickman" />
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Character Visual Consistency Prompt Anchor</label>
+                        <input type="text" id="m1CharacterRef" class="form-input" value="Minimalist 2D hand-drawn stickman hero, clean black ink outlines, solid pure white background" />
+                      </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Recurring Visual Elements &amp; Atmosphere</label>
+                      <input type="text" id="m1VisualElements" class="form-input" placeholder="e.g. Glowing neon sword, blackboard sketch style, chalk arrows..." />
+                    </div>
+                  </div>
+                </details>
               </div>
 
-              <div class="grid-2">
-                <div class="form-group">
-                  <label class="form-label">Character Name</label>
-                  <input type="text" id="m1CharacterName" class="form-input" value="Main Stickman" />
+              <!-- Voiceover Script Input -->
+              <div class="form-group" style="margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <label class="form-label" style="margin-bottom: 0;">Story / Voiceover Script</label>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="file" id="m1ScriptFile" accept=".txt,.text,.md" style="display: none;" onchange="handleScriptFile(this, 'm1')" />
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('m1ScriptFile').click()" style="font-size: 11px; padding: 4px 12px; cursor: pointer;">
+                      📁 Pick .txt Script File
+                    </button>
+                    <span id="m1WordCountLabel" style="color: var(--cyan); font-weight: 700; font-size: 12px;">0 words</span>
+                  </div>
                 </div>
+                <textarea id="m1ScriptInput" class="form-textarea" placeholder="Paste your complete story or voiceover script here, or click 'Pick .txt Script File'..." oninput="updateM1ScriptWordCount()" style="min-height: 150px;"></textarea>
+              </div>
 
-                <div class="form-group">
-                  <label class="form-label">Character Visual Consistency Prompt Anchor</label>
-                  <input type="text" id="m1CharacterRef" class="form-input" placeholder="e.g. Minimalist stickman hero wearing a red headband and blue sneakers, black ink outlines..." />
+              <!-- Master Directive Info Bar (story to prompts.md default) -->
+              <div style="background: rgba(10, 14, 24, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 13px;">📄</span>
+                  <span style="font-size: 12px; font-weight: 700; color: #fff;">Master Directive:</span>
+                  <span id="m1DirectiveStatusBadge" class="brand-badge" style="background: rgba(0, 240, 255, 0.1); color: var(--cyan); border-color: rgba(0, 240, 255, 0.25); font-size: 11px;">
+                    story to prompts.md (Canonical V7 Locked)
+                  </span>
                 </div>
-              </div>
-
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Recurring Visual Elements &amp; Atmosphere</label>
-                <input type="text" id="m1VisualElements" class="form-input" placeholder="e.g. Neon glowing sword, floating dark cyberpunk city, minimalist blackboard aesthetic..." />
-              </div>
-            </div>
-
-            <!-- Voiceover Script Input -->
-            <div class="form-group">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label class="form-label" style="margin-bottom: 0;">Story / Voiceover Script</label>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <input type="file" id="m1ScriptFile" accept=".txt,.text,.md" style="display: none;" onchange="handleScriptFile(this, 'm1')" />
-                  <button type="button" class="btn btn-secondary" onclick="document.getElementById('m1ScriptFile').click()" style="font-size: 11px; padding: 4px 12px; cursor: pointer;">
-                    📄 Pick .txt Script File
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="file" id="m1MasterPromptFile" accept=".md,.txt" style="display: none;" onchange="handleMasterPromptFile(this)" />
+                  <button type="button" class="btn btn-secondary" onclick="document.getElementById('m1MasterPromptFile').click()" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">
+                    📂 Pick Custom .md Directive
                   </button>
-                  <span id="m1WordCountLabel" style="color: var(--cyan); font-weight: 700; font-size: 12px;">0 words</span>
-                </div>
-              </div>
-              <textarea id="m1ScriptInput" class="form-textarea" placeholder="Paste your story or voiceover script here..." oninput="updateM1ScriptWordCount()" style="min-height: 160px;"></textarea>
-            </div>
-
-            <details style="margin-bottom: 20px; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); padding: 12px 16px;">
-              <summary style="font-size: 12px; font-weight: 700; color: var(--cyan); cursor: pointer;">Show Master Prompt V7 Prompt Directive</summary>
-              <div style="margin-top: 10px;">
-                <textarea id="m1MasterPrompt" class="form-textarea" style="font-family: var(--font-mono); font-size: 12px; min-height: 120px;"></textarea>
-              </div>
-            </details>
-
-            <button id="btnM1Generate" class="btn btn-primary" onclick="triggerMode1Generate()" style="width: 100%; justify-content: center; padding: 14px; font-size: 15px; font-weight: 800;">
-              <span>✨</span> Generate Sequential Story Prompts
-            </button>
-
-            <!-- Animated Progress Indicator -->
-            <div id="m1ProgressBox" style="display: none; margin-top: 18px;">
-              <div style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
-                <div id="m1ProgressBar" style="width: 0%; height: 100%; background: var(--grad-brand); transition: width 0.4s ease;"></div>
-              </div>
-              <div id="m1ProgressStatus" style="font-size: 12px; color: var(--cyan); margin-top: 8px; font-family: var(--font-mono);">Generating...</div>
-            </div>
-
-            <!-- Story Bible Card (Shown after generation) -->
-            <div id="m1BibleBox" style="display: none; margin-top: 20px; background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: var(--radius-sm); padding: 18px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-weight: 800; color: #c4b5fd; font-size: 14px;">📖 Story Bible Generated:</div>
-                <button class="btn btn-emerald" onclick="approveAndStartWorkers()" style="font-size: 11.5px; padding: 5px 12px;">🚀 Approve & Start Worker Farm</button>
-              </div>
-              <div style="font-size: 13px; color: var(--text-muted);"><strong style="color: #fff;">Protagonist:</strong> <span id="m1BibleProtagonist"></span></div>
-              <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;"><strong style="color: #fff;">Setting:</strong> <span id="m1BibleSetting"></span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- SUB VIEW B: MODE 2 CLEAN PROMPT LIST IMPORTER -->
-        <div id="subViewMode2" class="sub-view-content" style="display: none;">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="card-icon">📥</div>
-                <div>
-                  <div class="card-title">Mode 2: Clean Prompt List Importer</div>
-                  <div class="card-subtitle">Import sequential 001_... formatted prompt lists directly into the production database</div>
-                </div>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <input type="file" id="m2FileInput" accept=".txt,.md,.json" style="display: none;" onchange="handleM2FileUpload(this)" />
-                <button class="btn btn-secondary" onclick="document.getElementById('m2FileInput').click()" style="font-size: 12px; padding: 6px 12px;">
-                  📁 Upload .txt / .md File
-                </button>
-              </div>
-            </div>
-
-            <!-- Mode 2 Audio & Matching Voiceover Sync -->
-            <div style="background: rgba(10, 14, 24, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 18px;">
-              <div style="font-size: 12px; font-weight: 800; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
-                🎙️ Matching Voiceover Audio & BGM
-              </div>
-              <div class="grid-2">
-                <div class="form-group">
-                  <label class="form-label">Voiceover Audio File / Path</label>
-                  <div style="display: flex; gap: 8px;">
-                    <input type="file" id="m2VoiceoverFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleM2VoiceoverFile(this)" />
-                    <input type="hidden" id="m2VoiceoverPath" /><div id="m2VoiceoverStatus" class="file-picked-chip" style="display: none;"></div>
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">Duration & Auto-Detection</label>
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <button type="button" class="btn btn-secondary" onclick="autoDetectM2Voiceover()" style="white-space: nowrap; font-size: 12px; padding: 8px 12px;">
-                      ⚡ Auto-Detect
-                    </button>
-                    <input type="number" id="m2Duration" class="form-input" value="72" step="0.5" style="width: 100px;" />
-                    <span id="m2DurationBadge" class="brand-badge" style="white-space: nowrap;">72.0s</span>
-                  </div>
+                  <button type="button" class="btn btn-secondary" onclick="toggleDirectivePreview()" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">
+                    👁️ View / Edit Directive
+                  </button>
                 </div>
               </div>
 
-              <div class="grid-2" style="margin-top: 10px;">
-                <div class="form-group">
-                  <label class="form-label">Pacing Preset</label>
-                  <select id="m2Pacing" class="form-select">
-                    <option value="3/4s" selected>3 images / 4 sec (0.75x - Dynamic Story Recommended)</option>
-                    <option value="2/4s">2 images / 4 sec (0.50x - YouTube Standard)</option>
-                    <option value="1/4s">1 image / 4 sec (0.25x - Cinematic)</option>
-                    <option value="4/4s">4 images / 4 sec (1.00x - Fast-Paced)</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">
-                    BGM Volume: <span id="m2MusicVolLabel" style="color: var(--cyan); font-weight: 700;">7%</span>
-                  </label>
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="hidden" id="m2MusicPath" />
-                    <input type="range" id="m2MusicVol" min="0" max="100" value="7" style="width: 90px;" oninput="document.getElementById('m2MusicVolLabel').textContent = this.value + '%'" />
-                  </div>
-                </div>
+              <div id="m1DirectiveBox" style="display: none; margin-bottom: 18px;">
+                <textarea id="m1MasterPrompt" class="form-textarea" style="font-family: var(--font-mono); font-size: 11.5px; min-height: 130px;"></textarea>
               </div>
 
-              <!-- Live Audio Forecast Card Mode 2 -->
-              <div class="audio-forecast-card" id="m2ForecastCard">
-                <div class="forecast-item">
-                  <span class="forecast-title">Audio Duration</span>
-                  <span class="forecast-value text-emerald" id="m2ForecastDur">72.0s</span>
-                </div>
-                <div class="forecast-arrow">→</div>
-                <div class="forecast-item">
-                  <span class="forecast-title">Pacing Rule</span>
-                  <span class="forecast-value" id="m2ForecastPacing">3 imgs / 4s (1.33s/img)</span>
-                </div>
-                <div class="forecast-arrow">→</div>
-                <div class="forecast-item highlight">
-                  <span class="forecast-title">Expected Prompts</span>
-                  <span class="forecast-value" id="m2ForecastCount">54 Prompts Expected</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Prompts Input Textarea -->
-            <div class="form-group">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label class="form-label" style="margin-bottom: 0;">Paste Raw Prompts (1 per line with 001_ prefix)</label>
-                <span id="m2PromptCountBadge" class="brand-badge">0 prompts</span>
-              </div>
-              <textarea id="rawPromptsInput" class="form-textarea" placeholder="001_A simple stickman standing in a dark room&#10;002_The stickman looks up at a glowing neon star&#10;003_The stickman begins to run towards the light..." style="min-height: 220px;" oninput="updateM2PromptCount()"></textarea>
-            </div>
-
-            <div style="display: flex; gap: 12px;">
-              <button class="btn btn-primary" onclick="importRawPrompts()" style="padding: 12px 24px; font-size: 14px; font-weight: 800;">
-                📥 Validate & Import Prompts
+              <button id="btnM1Generate" class="btn btn-primary" onclick="triggerMode1Generate()" style="width: 100%; justify-content: center; padding: 14px; font-size: 15px; font-weight: 800;">
+                <span>✨</span> Generate Sequential Story Prompts
               </button>
+
+              <!-- Animated Progress Indicator -->
+              <div id="m1ProgressBox" style="display: none; margin-top: 18px;">
+                <div style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
+                  <div id="m1ProgressBar" style="width: 0%; height: 100%; background: var(--grad-brand); transition: width 0.4s ease;"></div>
+                </div>
+                <div id="m1ProgressStatus" style="font-size: 12px; color: var(--cyan); margin-top: 8px; font-family: var(--font-mono);">Generating...</div>
+              </div>
+
+              <!-- Output Prompts Canvas (Shown after generation) -->
+              <div id="m1OutputCanvasBox" style="display: none; margin-top: 22px; background: rgba(10, 14, 24, 0.85); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: var(--radius-sm); padding: 18px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: 800; color: #fff; font-size: 14px;">✨ Generated Prompts Canvas</span>
+                    <span id="m1CanvasCountBadge" class="brand-badge text-emerald" style="border-color: rgba(16, 185, 129, 0.3);">0 Scenes</span>
+                  </div>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-secondary" onclick="copyM1PromptsCanvas()" style="font-size: 12px; padding: 6px 14px; cursor: pointer;">
+                      📋 Copy All Prompts
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="downloadM1PromptsFile()" style="font-size: 12px; padding: 6px 14px; cursor: pointer;">
+                      💾 Download .txt
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="proceedFromM1ToWorkerFarm()" style="font-size: 12px; padding: 6px 16px; cursor: pointer;">
+                      🚀 Proceed to Worker Farm →
+                    </button>
+                  </div>
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">
+                  Generated prompts ready for Worker Farm execution or export. Edit any line if needed:
+                </div>
+                <textarea id="m1OutputCanvasText" class="form-textarea" style="font-family: var(--font-mono); font-size: 12px; line-height: 1.5; min-height: 240px; background: rgba(5, 7, 13, 0.95);"></textarea>
+              </div>
+
+              <!-- Story Bible Card -->
+              <div id="m1BibleBox" style="display: none; margin-top: 18px; background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: var(--radius-sm); padding: 18px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <div style="font-weight: 800; color: #c4b5fd; font-size: 14px;">📖 Story Bible Generated:</div>
+                  <button class="btn btn-emerald" onclick="proceedFromM1ToWorkerFarm()" style="font-size: 11.5px; padding: 5px 12px;">🚀 Open Worker Farm</button>
+                </div>
+                <div style="font-size: 13px; color: var(--text-muted);"><strong style="color: #fff;">Protagonist:</strong> <span id="m1BibleProtagonist"></span></div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;"><strong style="color: #fff;">Setting:</strong> <span id="m1BibleSetting"></span></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- SUB VIEW C: PROJECT PROMPTS QUEUE -->
-        <div id="subViewQueue" class="sub-view-content" style="display: none;">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="card-icon">📑</div>
-                <div>
-                  <div class="card-title">Active Project Prompts Queue</div>
-                  <div class="card-subtitle">Sequential Stickman Generation Queue and Worker Allocation</div>
+          <!-- SUB VIEW C: PROJECT PROMPTS QUEUE (NOW WITH CLEAR & RETRY BUTTONS) -->
+          <div id="subViewQueue" class="sub-view-content" style="display: none;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-group">
+                  <div class="card-icon">📑</div>
+                  <div>
+                    <div class="card-title">Active Project Prompts Queue</div>
+                    <div class="card-subtitle">Sequential Stickman Generation Queue and Worker Allocation</div>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <span id="promptsCountBadge" class="brand-badge">0 Prompts</span>
+                  <button type="button" id="btnRetryFailedPrompts" class="btn btn-secondary" onclick="retryFailedPrompts()" style="font-size: 11.5px; padding: 5px 12px; color: var(--amber); cursor: pointer;" title="Reset all failed prompts back to PENDING status">
+                    ↻ Retry Failed Prompts
+                  </button>
+                  <button type="button" id="btnClearFailedPrompts" class="btn btn-secondary" onclick="clearFailedPrompts()" style="font-size: 11.5px; padding: 5px 12px; color: var(--rose); cursor: pointer;" title="Remove failed prompts from this project">
+                    ✕ Clear Failed Prompts
+                  </button>
+                  <button type="button" id="btnClearAllPrompts" class="btn btn-secondary" onclick="clearAllPromptsQueue()" style="font-size: 11.5px; padding: 5px 12px; color: var(--rose); cursor: pointer;" title="Clear all prompts from this project queue">
+                    🗑️ Clear All Prompts
+                  </button>
                 </div>
               </div>
-              <span id="promptsCountBadge" class="brand-badge">0 Prompts</span>
-            </div>
 
-            <div id="promptListContainer" class="prompt-list-wrap">
-              <div style="color: var(--text-dim); padding: 24px; text-align: center;">Select or create a project to inspect prompts.</div>
+              <div id="promptListContainer" class="prompt-list-wrap">
+                <div style="color: var(--text-dim); padding: 24px; text-align: center;">Select or create a project to inspect prompts.</div>
+              </div>
             </div>
           </div>
-        </div>
-
-      </section>
-
-      <!-- ==================== STEP 2: WORKER FARM ==================== -->
-      <section id="step-2-panel" class="view-panel">
+        </section>
+        
+        <section id="step-2-panel" class="view-panel">
         <div class="card">
           <div class="card-header">
             <div class="card-title-group">
@@ -784,17 +863,175 @@
             </div>
           </div>
 
-          <!-- RIGHT COLUMN: CAPCUT CAPTION CUSTOMIZER & 18 TEMPLATES (PORTED FROM E:	witchyt	witchyoutube) -->
-          <div class="caption-inspector">
-            <div class="inspector-header">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3>🎨 Dynamic Captions & Subtitles</h3>
-                <span class="brand-badge" style="background: rgba(0, 240, 255, 0.15); color: var(--cyan);">Live Preview</span>
+          <!-- RIGHT COLUMN: TOOLS & ASSETS ADVANCED POST-PRODUCTION SUITE -->
+          <div class="caption-inspector tools-assets-panel">
+            <div class="tools-panel-header">
+              <div class="tools-panel-title-row">
+                <span class="tools-panel-title">TOOLS & ASSETS</span>
+                <span class="brand-badge" id="toolsActiveModeBadge" style="background: rgba(0, 240, 255, 0.15); color: var(--cyan); font-size: 10.5px;">✨ Effects</span>
               </div>
-              <p>18 viral CapCut styles with draggable box and live font preview.</p>
+              <div class="tools-tab-bar">
+                <button type="button" class="tools-tab-btn " id="toolTab-effects" onclick="switchToolsTab('effects')">
+         <span>✨</span> Effects
+        </button>
+                <button type="button" class="tools-tab-btn active" id="toolTab-captions" onclick="switchToolsTab('captions')">
+                  <span>💬</span> Captions
+                </button>
+                <button type="button" class="tools-tab-btn" id="toolTab-motion" onclick="switchToolsTab('motion')">
+                  <span>⚡</span> Motion
+                </button>
+                <button type="button" class="tools-tab-btn" id="toolTab-audio" onclick="switchToolsTab('audio')">
+                  <span>🔊</span> Audio / SFX
+                </button>
+                <button type="button" class="tools-tab-btn" id="toolTab-media" onclick="switchToolsTab('media')">
+                  <span>📁</span> Media
+                </button>
+              </div>
             </div>
 
-            <!-- Master Caption Toggle -->
+            <!-- ================= TAB 1: EFFECTS (ATMOSPHERIC 20 + PRO FX) ================= -->
+            <div class="tools-tab-content" id="tabContent-effects" style="display: none;">
+              <!-- Atmospheric Effects 20 -->
+              <div class="atmos-section-header">
+                <div class="atmos-section-title">
+                  <span>Atmospheric Effects</span>
+                  <span class="atmos-count-badge">20</span>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="resetAtmosphericEffects()" style="font-size: 10px; padding: 2px 8px;">↺ Reset Look</button>
+              </div>
+
+              <!-- 20 Cards Grid -->
+              <div class="atmos-grid">
+                <div class="atmos-card atmos-normal active" data-preset="normal" onclick="selectAtmosphericEffect('normal')">
+                  <span class="atmos-card-label">Normal</span>
+                </div>
+                <div class="atmos-card atmos-bright light-theme" data-preset="bright" onclick="selectAtmosphericEffect('bright')">
+                  <span class="atmos-card-label">Bright</span>
+                </div>
+                <div class="atmos-card atmos-moody-dark" data-preset="moody_dark" onclick="selectAtmosphericEffect('moody_dark')">
+                  <span class="atmos-card-label">Moody Dark</span>
+                </div>
+                <div class="atmos-card atmos-warm" data-preset="warm" onclick="selectAtmosphericEffect('warm')">
+                  <span class="atmos-card-label">Warm</span>
+                </div>
+                <div class="atmos-card atmos-cool" data-preset="cool" onclick="selectAtmosphericEffect('cool')">
+                  <span class="atmos-card-label">Cool</span>
+                </div>
+                <div class="atmos-card atmos-vintage" data-preset="vintage" onclick="selectAtmosphericEffect('vintage')">
+                  <span class="atmos-card-label">Vintage</span>
+                </div>
+                <div class="atmos-card atmos-bw" data-preset="b_w" onclick="selectAtmosphericEffect('b_w')">
+                  <span class="atmos-card-label">B&W</span>
+                </div>
+                <div class="atmos-card atmos-vivid" data-preset="vivid" onclick="selectAtmosphericEffect('vivid')">
+                  <span class="atmos-card-label">Vivid</span>
+                </div>
+                <div class="atmos-card atmos-dreamy light-theme" data-preset="dreamy" onclick="selectAtmosphericEffect('dreamy')">
+                  <span class="atmos-card-label">Dreamy</span>
+                </div>
+                <div class="atmos-card atmos-neon" data-preset="neon" onclick="selectAtmosphericEffect('neon')">
+                  <span class="atmos-card-label">Neon</span>
+                </div>
+                <div class="atmos-card atmos-golden-hour" data-preset="golden_hour" onclick="selectAtmosphericEffect('golden_hour')">
+                  <span class="atmos-card-label">Golden Hour</span>
+                </div>
+                <div class="atmos-card atmos-cyberpunk" data-preset="cyberpunk" onclick="selectAtmosphericEffect('cyberpunk')">
+                  <span class="atmos-card-label">Cyberpunk</span>
+                </div>
+                <div class="atmos-card atmos-noir" data-preset="noir" onclick="selectAtmosphericEffect('noir')">
+                  <span class="atmos-card-label">Noir</span>
+                </div>
+                <div class="atmos-card atmos-sepia" data-preset="sepia" onclick="selectAtmosphericEffect('sepia')">
+                  <span class="atmos-card-label">Sepia</span>
+                </div>
+                <div class="atmos-card atmos-invert" data-preset="invert" onclick="selectAtmosphericEffect('invert')">
+                  <span class="atmos-card-label">Invert</span>
+                </div>
+                <div class="atmos-card atmos-pastel light-theme" data-preset="pastel" onclick="selectAtmosphericEffect('pastel')">
+                  <span class="atmos-card-label">Pastel</span>
+                </div>
+                <div class="atmos-card atmos-frost light-theme" data-preset="frost" onclick="selectAtmosphericEffect('frost')">
+                  <span class="atmos-card-label">Frost</span>
+                </div>
+                <div class="atmos-card atmos-sunset" data-preset="sunset" onclick="selectAtmosphericEffect('sunset')">
+                  <span class="atmos-card-label">Sunset</span>
+                </div>
+                <div class="atmos-card atmos-ocean" data-preset="ocean" onclick="selectAtmosphericEffect('ocean')">
+                  <span class="atmos-card-label">Ocean</span>
+                </div>
+                <div class="atmos-card atmos-chromatic" data-preset="chromatic" onclick="selectAtmosphericEffect('chromatic')">
+                  <span class="atmos-card-label">Chromatic</span>
+                </div>
+              </div>
+
+              <!-- Adobe Premiere & After Effects Pro Sliders -->
+              <div class="inspector-section" style="margin-top: 10px;">
+                <div class="section-title">
+                  <span>🎛️ Premiere & After Effects Pro Controls</span>
+                  <span class="brand-badge" style="font-size: 9.5px;">Live Canvas</span>
+                </div>
+
+                <!-- Gaussian Blur -->
+                <div style="margin-bottom: 8px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
+                    <span style="color: #cbd5e1;">Gaussian Blur</span>
+                    <span id="fxBlurVal" style="color: var(--cyan); font-family: var(--font-mono);">0px</span>
+                  </div>
+                  <input type="range" id="fxBlurSlider" min="0" max="15" step="0.5" value="0" class="form-input" style="padding: 2px 0;" oninput="updateCustomEffectSliders()">
+                </div>
+
+                <!-- Lumetri Exposure -->
+                <div style="margin-bottom: 8px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
+                    <span style="color: #cbd5e1;">Lumetri Exposure</span>
+                    <span id="fxExposureVal" style="color: var(--cyan); font-family: var(--font-mono);">0%</span>
+                  </div>
+                  <input type="range" id="fxExposureSlider" min="-50" max="50" step="5" value="0" class="form-input" style="padding: 2px 0;" oninput="updateCustomEffectSliders()">
+                </div>
+
+                <!-- Lumetri Contrast -->
+                <div style="margin-bottom: 8px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
+                    <span style="color: #cbd5e1;">Lumetri Contrast</span>
+                    <span id="fxContrastVal" style="color: var(--cyan); font-family: var(--font-mono);">100%</span>
+                  </div>
+                  <input type="range" id="fxContrastSlider" min="50" max="180" step="5" value="100" class="form-input" style="padding: 2px 0;" oninput="updateCustomEffectSliders()">
+                </div>
+
+                <!-- Lumetri Saturation -->
+                <div style="margin-bottom: 10px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
+                    <span style="color: #cbd5e1;">Lumetri Saturation</span>
+                    <span id="fxSaturationVal" style="color: var(--cyan); font-family: var(--font-mono);">100%</span>
+                  </div>
+                  <input type="range" id="fxSaturationSlider" min="0" max="220" step="10" value="100" class="form-input" style="padding: 2px 0;" oninput="updateCustomEffectSliders()">
+                </div>
+
+                <!-- Toggles Row: Vignette, Film Grain, Sharpen, Glow -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #fff; cursor: pointer; background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                    <input type="checkbox" id="fxVignetteToggle" onchange="updateCustomEffectSliders()">
+                    <span>🎬 Vignette</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #fff; cursor: pointer; background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                    <input type="checkbox" id="fxGrainToggle" onchange="updateCustomEffectSliders()">
+                    <span>🎞️ Film Grain</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #fff; cursor: pointer; background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                    <input type="checkbox" id="fxSharpenToggle" onchange="updateCustomEffectSliders()">
+                    <span>🔪 Sharpen</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #fff; cursor: pointer; background: rgba(255,255,255,0.04); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                    <input type="checkbox" id="fxGlowToggle" onchange="updateCustomEffectSliders()">
+                    <span>✨ CC Glow</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= TAB 2: CAPTIONS ================= -->
+            <div class="tools-tab-content" id="tabContent-captions" style="display: flex;">
+              <!-- Master Caption Toggle -->
             <div class="inspector-section" style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-subtle); padding: 12px; margin-bottom: 2px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
@@ -1003,14 +1240,339 @@
                   </div>
                 </div>
               </div>
+            </div>
+            </div> <!-- CLOSE tabContent-captions -->
 
+            <!-- ================= TAB 3: MOTION & TRANSITIONS ================= -->
+            <div class="tools-tab-content" id="tabContent-motion" style="display: none;">
+              <!-- Premiere Transitions -->
+              <div class="inspector-section">
+                <div class="section-title">
+                  <span>🎬 Adobe Premiere Pro Transitions</span>
+                  <span class="brand-badge" id="activeTransitionBadge">Cross Dissolve</span>
+                </div>
+                <div class="motion-grid">
+                  <div class="motion-card active" data-transition="cross_dissolve" onclick="selectTransitionPreset('cross_dissolve', this)">
+                    <div class="motion-card-title">Cross Dissolve</div>
+                    <div class="motion-card-sub">Smooth opacity blending</div>
+                  </div>
+                  <div class="motion-card" data-transition="dip_black" onclick="selectTransitionPreset('dip_black', this)">
+                    <div class="motion-card-title">Dip to Black</div>
+                    <div class="motion-card-sub">Dramatic scene break fade</div>
+                  </div>
+                  <div class="motion-card" data-transition="dip_white" onclick="selectTransitionPreset('dip_white', this)">
+                    <div class="motion-card-title">Dip to White</div>
+                    <div class="motion-card-sub">Cinematic flash transition</div>
+                  </div>
+                  <div class="motion-card" data-transition="film_dissolve" onclick="selectTransitionPreset('film_dissolve', this)">
+                    <div class="motion-card-title">Film Dissolve</div>
+                    <div class="motion-card-sub">Optical film exposure curve</div>
+                  </div>
+                  <div class="motion-card" data-transition="morph_cut" onclick="selectTransitionPreset('morph_cut', this)">
+                    <div class="motion-card-title">Morph Cut</div>
+                    <div class="motion-card-sub">Seamless cut interpolation</div>
+                  </div>
+                  <div class="motion-card" data-transition="zoom_trans" onclick="selectTransitionPreset('zoom_trans', this)">
+                    <div class="motion-card-title">Zoom / Transform</div>
+                    <div class="motion-card-sub">High-energy push zoom</div>
+                  </div>
+                  <div class="motion-card" data-transition="push_trans" onclick="selectTransitionPreset('push_trans', this)">
+                    <div class="motion-card-title">Push Transition</div>
+                    <div class="motion-card-sub">Linear screen wipe slide</div>
+                  </div>
+                  <div class="motion-card" data-transition="whip_blur" onclick="selectTransitionPreset('whip_blur', this)">
+                    <div class="motion-card-title">Whip / Blur</div>
+                    <div class="motion-card-sub">High-speed motion blur pan</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- After Effects Camera Movement -->
+              <div class="inspector-section" style="margin-top: 10px;">
+                <div class="section-title">
+                  <span>🎥 After Effects Camera & Animation</span>
+                  <span class="brand-badge" id="activeMotionBadge">Push-In Zoom</span>
+                </div>
+                <div class="motion-grid">
+                  <div class="motion-card active" data-motion="motion-zoom-in" onclick="selectMotionPreset('motion-zoom-in', this)">
+                    <div class="motion-card-title">Camera Push-In</div>
+                    <div class="motion-card-sub">Subtle continuous zoom in</div>
+                  </div>
+                  <div class="motion-card" data-motion="motion-zoom-out" onclick="selectMotionPreset('motion-zoom-out', this)">
+                    <div class="motion-card-title">Camera Pull-Out</div>
+                    <div class="motion-card-sub">Wide reveal slow zoom out</div>
+                  </div>
+                  <div class="motion-card" data-motion="motion-pan-left" onclick="selectMotionPreset('motion-pan-left', this)">
+                    <div class="motion-card-title">Pan Left &rarr; Right</div>
+                    <div class="motion-card-sub">Horizontal tracking motion</div>
+                  </div>
+                  <div class="motion-card" data-motion="motion-pan-right" onclick="selectMotionPreset('motion-pan-right', this)">
+                    <div class="motion-card-title">Pan Right &rarr; Left</div>
+                    <div class="motion-card-sub">Reverse tracking camera</div>
+                  </div>
+                  <div class="motion-card" data-motion="motion-parallax" onclick="selectMotionPreset('motion-parallax', this)">
+                    <div class="motion-card-title">2.5D Parallax</div>
+                    <div class="motion-card-sub">Multi-plane dynamic depth</div>
+                  </div>
+                  <div class="motion-card" data-motion="motion-3d" onclick="selectMotionPreset('motion-3d', this)">
+                    <div class="motion-card-title">3D Camera Move</div>
+                    <div class="motion-card-sub">Perspective tilt & orbit</div>
+                  </div>
+                  <div class="motion-card" data-motion="motion-whip" onclick="selectMotionPreset('motion-whip', this)">
+                    <div class="motion-card-title">Whip & Shake</div>
+                    <div class="motion-card-sub">Snappy kinetic snap</div>
+                  </div>
+                  <div class="motion-card" data-motion="motion-ease" onclick="selectMotionPreset('motion-ease', this)">
+                    <div class="motion-card-title">Easy Ease / Graph</div>
+                    <div class="motion-card-sub">Velocitized smooth curve</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= TAB 4: AUDIO & SOUND EFFECTS (SFX) ================= -->
+            <div class="tools-tab-content" id="tabContent-audio" style="display: none;">
+              <!-- Background Music Volume Ducking Control -->
+              <div class="inspector-section" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 12px; font-weight: 700; color: #fff;">🎵 Ducked Background Music</span>
+                  <span class="brand-badge" id="musicDuckingBadge" style="background: rgba(16, 185, 129, 0.2); color: var(--emerald);">7% (Standard)</span>
+                </div>
+                <input type="range" id="renderMusicVolumeSlider" min="0" max="30" value="7" class="form-input" style="padding: 2px 0;" oninput="document.getElementById('musicDuckingBadge').textContent = this.value + '%'; window.renderMusicVolume = this.value / 100;">
+              </div>
+
+              <!-- Category 1: Whooshes & Swishes -->
+              <div class="sfx-category-header"><span>💨</span> Whooshes & Swishes</div>
+              <div class="sfx-grid">
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('whoosh')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Whoosh</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Whoosh')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('fast_whoosh')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Fast Whoosh</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Fast Whoosh')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('short_whoosh')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Short Whoosh</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Short Whoosh')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('whoosh_trans')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Whoosh Transition</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Whoosh Trans')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('swish')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Swish</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Swish')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('fast_swish')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Fast Swish</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Fast Swish')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('air_whoosh')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Air Whoosh</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Air Whoosh')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('reverse_whoosh')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Reverse Whoosh</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Reverse Whoosh')">+ Scene</button>
+                </div>
+              </div>
+
+              <!-- Category 2: Impacts & Hits -->
+              <div class="sfx-category-header"><span>💥</span> Impacts & Hits</div>
+              <div class="sfx-grid">
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('cinematic_impact')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Cinematic Impact</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Cinematic Impact')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('deep_impact')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Deep Impact</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Deep Impact')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('bass_impact')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Bass Impact</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Bass Impact')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('trailer_hit')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Trailer Hit</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Trailer Hit')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('cinematic_hit')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Cinematic Hit</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Cinematic Hit')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('boom_hit')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Boom Hit</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Boom Hit')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('low_boom')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Low Boom</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Low Boom')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('sub_boom')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Sub Boom</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Sub Boom')">+ Scene</button>
+                </div>
+              </div>
+
+              <!-- Category 3: Build-ups & Risers -->
+              <div class="sfx-category-header"><span>📈</span> Build-up & Risers</div>
+              <div class="sfx-grid">
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('cinematic_riser')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Cinematic Riser</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Cinematic Riser')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('whoosh_riser')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Whoosh Riser</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Whoosh Riser')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('tension_riser')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Tension Riser</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Tension Riser')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('reverse_riser')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Reverse Riser</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Reverse Riser')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('impact_riser')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Impact Riser</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Impact Riser')">+ Scene</button>
+                </div>
+              </div>
+
+              <!-- Category 4: Documentary & Background -->
+              <div class="sfx-category-header"><span>🌧️</span> Documentary & Ambience</div>
+              <div class="sfx-grid">
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('dark_ambience')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Dark Ambience</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Dark Ambience')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('cinematic_ambience')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Cinematic Ambience</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Cinema Ambience')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('wind_ambience')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Wind Ambience</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Wind Ambience')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('rain_ambience')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Rain Ambience</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Rain Ambience')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('crowd_ambience')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Crowd Ambience</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Crowd Ambience')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('room_tone')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Room Tone</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Room Tone')">+ Scene</button>
+                </div>
+              </div>
+
+              <!-- Category 5: Small UI & Graphic Sounds -->
+              <div class="sfx-category-header"><span>🖱️</span> UI & Graphic Micro Sounds</div>
+              <div class="sfx-grid">
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('click')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Click</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Click')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('tick')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Tick</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Tick')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('pop')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Pop</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Pop')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('digital_click')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Digital Click</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Digital Click')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('camera_shutter')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Camera Shutter</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Camera Shutter')">+ Scene</button>
+                </div>
+                <div class="sfx-card">
+                  <button type="button" class="sfx-play-btn" onclick="playSfx('glitch_hit')" title="Play Preview">▶</button>
+                  <span class="sfx-name">Glitch Hit</span>
+                  <button type="button" class="sfx-attach-btn" onclick="attachSfxToCurrentScene('Glitch Hit')">+ Scene</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= TAB 5: MEDIA INSPECTOR ================= -->
+            <div class="tools-tab-content" id="tabContent-media" style="display: none;">
+              <div class="inspector-section">
+                <div class="section-title">
+                  <span id="mediaInspectorTitle">🎬 Active Scene #01</span>
+                  <span class="brand-badge" id="mediaInspectorBadge">Prompt 001</span>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center;">
+                  <img id="mediaInspectorThumb" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60'><rect width='100' height='60' fill='%231a1a2e'/></svg>" style="width: 80px; height: 50px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border-subtle);" alt="Active Thumb" />
+                  <div style="flex: 1; font-size: 11.5px;">
+                    <div>Duration: <strong id="mediaInspectorDuration" style="color: var(--cyan);">1.33s</strong></div>
+                    <div style="color: var(--text-dim); margin-top: 2px;">Resolution: <span id="mediaInspectorRes">1024x1024</span></div>
+                    <div style="color: var(--emerald); margin-top: 2px;">Status: Valid QA Asset</div>
+                  </div>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                  <label class="form-label" style="font-size: 11px;">Prompt Description</label>
+                  <div id="mediaInspectorPromptText" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 10px; font-size: 11.5px; color: #cbd5e1; max-height: 100px; overflow-y: auto; line-height: 1.4;">
+                    Select or click any scene card in the CapCut timeline to view prompt instructions.
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                  <label class="btn btn-secondary" style="flex: 1; justify-content: center; font-size: 11px; cursor: pointer;">
+                    <span>📁</span> Replace Image
+                    <input type="file" accept="image/*" style="display: none;" onchange="onReplaceSceneImage(this)" />
+                  </label>
+                  <button type="button" class="btn btn-secondary" onclick="openLightbox(document.getElementById('playerCanvasImage').src, 'active', 'Scene Preview')" style="font-size: 11px;">
+                    🔍 Full View
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
         </div>
       </section>
 
-      <!-- ==================== STEP 5: STUDIO RENDER ==================== -->
+      <!-- ==================== STEP 5: STUDIO RENDER & ULTRA HD EXPORT ==================== -->
       <section id="step-5-panel" class="view-panel">
         <div class="grid-2">
           
@@ -1020,479 +1582,595 @@
               <div class="card-title-group">
                 <div class="card-icon">🎬</div>
                 <div>
-                  <div class="card-title">Post-Production Render Configuration</div>
-                  <div class="card-subtitle">FFmpeg 1080p H.264 MP4 High-Quality Video Engine</div>
+                  <div class="card-title">Broadcast & Ultra HD Render Engine</div>
+                  <div class="card-subtitle">FFmpeg 4K / 1080p High-Speed Multi-Threaded H.264 MP4 Export</div>
                 </div>
               </div>
+              <span class="brand-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald);">60 FPS Master Ready</span>
             </div>
 
+            <!-- Resolution Selector -->
             <div class="form-group">
-              <label class="form-label">Video Format / Resolution</label>
-              <select id="renderResolution" class="form-select">
-                <option value="1920x1080" selected>1920x1080 (16:9 Landscape - YouTube Standard)</option>
-                <option value="1080x1920">1080x1920 (9:16 Vertical - Shorts / Reels / TikTok)</option>
+              <label class="form-label" style="display: flex; justify-content: space-between;">
+                <span>Video Format & Resolution</span>
+                <span id="resBadge" style="color: var(--cyan); font-weight: 700;">🌟 4K Ultra HD (3840x2160)</span>
+              </label>
+              <select id="renderResolution" class="form-select" onchange="onRenderResolutionChange(this.value)">
+                <option value="3840x2160" selected>🌟 3840x2160 (16:9 - 4K Ultra HD Master - YouTube 4K Quality)</option>
+                <option value="2560x1440">💎 2560x1440 (16:9 - 2K Quad HD / 1440p High-Res)</option>
+                <option value="1920x1080">🎬 1920x1080 (16:9 - 1080p Full HD Broadcast Standard)</option>
+                <option value="2160x3840">📱 2160x3840 (9:16 - 4K Ultra HD Vertical Shorts / Reels Ultra)</option>
+                <option value="1080x1920">📱 1080x1920 (9:16 - 1080p Vertical Shorts / TikTok / Reels)</option>
               </select>
             </div>
 
+            <!-- Frame Rate (FPS) and Speed Preset -->
             <div class="grid-2">
               <div class="form-group">
-                <label class="form-label">Frame Rate (FPS)</label>
-                <input type="number" id="renderFps" class="form-input" value="30" />
+                <label class="form-label" style="display: flex; justify-content: space-between;">
+                  <span>Frame Rate (FPS)</span>
+                  <span style="color: var(--emerald); font-weight: 700;">60 FPS (Default Master)</span>
+                </label>
+                <div style="display: flex; gap: 6px;">
+                  <input type="number" id="renderFps" class="form-input" value="60" min="24" max="120" style="width: 80px;" />
+                  <button type="button" class="btn btn-secondary" onclick="document.getElementById('renderFps').value = 60;" style="flex: 1; font-size: 11px; padding: 4px 6px;">60 FPS</button>
+                  <button type="button" class="btn btn-secondary" onclick="document.getElementById('renderFps').value = 30;" style="flex: 1; font-size: 11px; padding: 4px 6px;">30 FPS</button>
+                  <button type="button" class="btn btn-secondary" onclick="document.getElementById('renderFps').value = 24;" style="flex: 1; font-size: 11px; padding: 4px 6px;">24 FPS</button>
+                </div>
               </div>
 
               <div class="form-group">
-                <label class="form-label">Dynamic Motion Effects</label>
-                <div style="display: flex; align-items: center; gap: 10px; height: 44px;">
-                  <input type="checkbox" id="renderMotionToggle" checked style="width: 20px; height: 20px; accent-color: var(--cyan);" />
-                  <span style="font-size: 13.5px; color: #fff;">Enable Pan & Slow Zoom</span>
-                </div>
+                <label class="form-label">Render Speed / Encoding Preset</label>
+                <select id="renderSpeedPreset" class="form-select">
+                  <option value="ultrafast" selected>⚡ ultrafast (Lightning Fast Export — 5x Speed)</option>
+                  <option value="superfast">🚀 superfast (Ultra-Fast Render)</option>
+                  <option value="veryfast">⚡ veryfast (Fast & Balanced — High Quality)</option>
+                  <option value="fast">📦 fast (Standard)</option>
+                  <option value="medium">💎 medium (Maximum Compression)</option>
+                </select>
               </div>
             </div>
 
-            <button id="btnStartRender" class="btn btn-primary" onclick="triggerRender()" style="width: 100%; justify-content: center; padding: 14px; font-size: 15px; margin-top: 14px; font-weight: 800;">
-              <span>🎬</span> Export 1080p MP4 Video
+            <!-- Visual Quality & Audio Bitrate -->
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Video Fidelity (CRF Profile)</label>
+                <select id="renderCrf" class="form-select">
+                  <option value="18" selected>🌟 Ultra HD Lossless (CRF 18 — High Bitrate)</option>
+                  <option value="20">🎬 Broadcast Master (CRF 20 — Standard)</option>
+                  <option value="23">📦 Web Compression (CRF 23 — Compact)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Audio Quality & Bitrate</label>
+                <select id="renderAudioBitrate" class="form-select">
+                  <option value="320k" selected>🔊 320 kbps (Studio Master AAC Audio)</option>
+                  <option value="192k">🔉 192 kbps (Standard High Quality)</option>
+                  <option value="128k">🔈 128 kbps (Compact Web Audio)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Performance Toggles -->
+            <div class="grid-2" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 12px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #fff; cursor: pointer;">
+                <input type="checkbox" id="renderMotionToggle" checked style="width: 18px; height: 18px; accent-color: var(--cyan);" />
+                <span>Dynamic Pan & Slow Zoom</span>
+              </label>
+
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #fff; cursor: pointer;">
+                <input type="checkbox" id="renderHwaccelToggle" checked style="width: 18px; height: 18px; accent-color: var(--cyan);" />
+                <span>Multi-Core Multi-Threading (threads=0)</span>
+              </label>
+            </div>
+
+            <button id="btnStartRender" class="btn btn-primary" onclick="triggerRender()" style="width: 100%; justify-content: center; padding: 14px; font-size: 15px; font-weight: 800;">
+              <span>🎬</span> Export Ultra HD 4K / 60 FPS MP4 Video
             </button>
 
             <!-- Render Status Box -->
-            <div id="renderStatusCard" style="display: none; margin-top: 20px; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: var(--radius-sm); padding: 18px;">
+            <div id="renderStatusCard" style="display: none; margin-top: 18px; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: var(--radius-sm); padding: 16px;">
               <div style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin-bottom: 10px;">
                 <div id="renderBar" style="width: 0%; height: 100%; background: var(--grad-brand); transition: width 0.4s ease;"></div>
               </div>
-              <div id="renderProgressText" style="font-size: 13px; font-family: var(--font-mono); color: var(--cyan);">Ready</div>
-            </div>
-
-            <!-- Built-in Video Player -->
-            <div id="renderPlayerWrap" style="display: none; margin-top: 24px;">
-              <div style="font-size: 13px; font-weight: 700; color: var(--emerald); margin-bottom: 10px;">▶ Video Preview Player:</div>
-              <video id="renderedVideoPlayer" controls style="width: 100%; border-radius: var(--radius-md); border: 1px solid var(--border-card); background: #000;"></video>
+              <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                <span id="renderStatusText" style="color: var(--cyan); font-weight: 600;">Exporting 4K 60FPS Video...</span>
+                <span id="renderPercent" style="font-family: var(--font-mono); font-weight: 700;">0%</span>
+              </div>
             </div>
           </div>
 
-          <!-- Render History Card -->
+          <!-- Video Preview & Master Player Card -->
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
-                <div class="card-icon">📁</div>
+                <div class="card-icon">📺</div>
                 <div>
-                  <div class="card-title">Export History & Downloads</div>
-                  <div class="card-subtitle">Rendered video files ready for publication</div>
+                  <div class="card-title">Exported Video Master Player</div>
+                  <div class="card-subtitle">In-Page MP4 Player with Instant Download & Folder Access</div>
                 </div>
+              </div>
+              <span id="renderSuccessBadge" class="brand-badge" style="display: none; background: rgba(16, 185, 129, 0.2); color: var(--emerald);">Ready</span>
+            </div>
+
+            <!-- In-page HTML5 Video Player -->
+            <div style="background: #000; border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 14px; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-subtle); position: relative;">
+              <video id="step5MasterPlayer" controls style="width: 100%; height: 100%; display: none; object-fit: contain;"></video>
+              <div id="step5PlayerPlaceholder" style="text-align: center; color: var(--text-muted); padding: 20px;">
+                <div style="font-size: 38px; margin-bottom: 10px; opacity: 0.6;">🎬</div>
+                <div style="font-size: 13px; font-weight: 600; color: #fff;">No Rendered Master Yet</div>
+                <div style="font-size: 11px; margin-top: 4px;">Click "Export Ultra HD 4K / 60 FPS MP4 Video" to generate and preview your video here!</div>
               </div>
             </div>
 
-            <div id="renderHistoryList" style="display: flex; flex-direction: column; gap: 10px;">
-              <div style="color: var(--text-dim); padding: 16px;">No videos rendered for this project yet.</div>
+            <!-- Video File Metadata Info & Action Buttons -->
+            <div id="step5VideoMetaBox" style="display: none; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px; font-size: 12px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="color: var(--text-muted);">Master File:</span>
+                <span id="step5FileName" style="font-family: var(--font-mono); font-weight: 700; color: #fff;">video.mp4</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="color: var(--text-muted);">Resolution & FPS:</span>
+                <span id="step5FileSpec" style="color: var(--cyan); font-weight: 700;">3840x2160 @ 60 FPS</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-muted);">Master File Size:</span>
+                <span id="step5FileSize" style="font-family: var(--font-mono); color: var(--emerald); font-weight: 700;">-- MB</span>
+              </div>
+            </div>
+
+            <!-- Post-Render Action Buttons -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <a id="btnDownloadRender" href="#" download class="btn btn-primary" style="display: none; flex: 1; justify-content: center; text-decoration: none; padding: 11px; font-size: 13px; font-weight: 700;">
+                ⬇️ Download 4K Master MP4
+              </a>
+              <button id="step5OpenFolderBtn" class="btn btn-secondary" onclick="openOutputFolder('output')" style="display: none; padding: 11px 16px; font-size: 13px;">
+                📂 Open Output Folder
+              </button>
             </div>
           </div>
 
         </div>
       </section>
 
-      <!-- ==================== STEP 6: TELEMETRY & SETTINGS ==================== -->
+      <!-- ==================== STEP 6: SETTINGS, API KEYS & 10-WORKER LOGIN ASSISTANT ==================== -->
       <section id="step-6-panel" class="view-panel">
-        <div class="grid-2" style="margin-bottom: 20px;">
+        <div class="grid-2">
           
-          <!-- System Settings & Groq Multi-Key Pool Card -->
+          <!-- Card 1: Multi-Provider AI API Keys Vault -->
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
                 <div class="card-icon">⚡</div>
                 <div>
-                  <div class="card-title">Groq AI Engine & Multi-API Key Pool</div>
-                  <div class="card-subtitle">Round-robin load balancing & automatic 429 rate limit failover</div>
+                  <div class="card-title">AI Engine & Cloud API Keys Vault</div>
+                  <div class="card-subtitle">Configure Groq, ElevenLabs, OpenAI, Stability AI, and Media APIs</div>
                 </div>
               </div>
-              <span id="activeKeysBadge" class="brand-badge">Pool Active</span>
             </div>
 
-            <div class="grid-2">
-              <div class="form-group">
-                <label class="form-label">Primary AI Model</label>
-                <input type="text" id="settingsGroqModel" class="form-input" value="openai/gpt-oss-120b" />
+            <!-- 1. Groq Cloud API -->
+            <div style="background: rgba(0, 240, 255, 0.04); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0; font-weight: 800; color: #fff;">
+                  ⚡ Groq AI Primary Key (Free & Ultra Fast)
+                </label>
+                <a href="https://console.groq.com/keys" target="_blank" style="font-size: 11px; color: var(--cyan); text-decoration: none;">Get Free Groq Key &rarr;</a>
+              </div>
+              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="password" id="settingsGroqKeySingle" class="form-input" placeholder="gsk_..." style="font-family: var(--font-mono); font-size: 12px;" />
+                <button type="button" class="btn btn-secondary" onclick="togglePasswordVisibility('settingsGroqKeySingle')" style="padding: 0 10px;">👁</button>
+                <button type="button" class="btn btn-secondary" onclick="testGroqKeyConnection()" style="font-size: 11px; padding: 0 12px; white-space: nowrap;">⚡ Test Key</button>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Fallback AI Model</label>
-                <input type="text" id="settingsGroqFallback" class="form-input" value="llama-3.3-70b-versatile" />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" style="display: flex; justify-content: space-between;">
-                <span>Groq API Keys Pool (3–5 Keys, 1 per line)</span>
+              <!-- Groq Multi-Key Pool (Rotator) -->
+              <label class="form-label" style="font-size: 11px; display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>Groq Key Rotation Pool (Automatic Failover, 1 per line)</span>
                 <span id="keyPoolCountLabel" style="color: var(--cyan); font-weight: 700;">1 Key Loaded</span>
               </label>
-              <textarea id="settingsGroqKeyPool" class="form-textarea" placeholder="gsk_key1...&#10;gsk_key2...&#10;gsk_key3...&#10;gsk_key4..." style="font-family: var(--font-mono); font-size: 12px; min-height: 100px;"></textarea>
+              <textarea id="settingsGroqKeyPool" class="form-textarea" placeholder="gsk_key1...&#10;gsk_key2...&#10;gsk_key3..." style="font-family: var(--font-mono); font-size: 11.5px; min-height: 55px;"></textarea>
+
+              <div class="grid-2" style="margin-top: 8px;">
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Primary AI Model</label>
+                  <input type="text" id="settingsGroqModel" class="form-input" value="llama-3.3-70b-versatile" style="font-size: 12px;" />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Fallback AI Model</label>
+                  <input type="text" id="settingsGroqFallback" class="form-input" value="llama-3.1-8b-instant" style="font-size: 12px;" />
+                </div>
+              </div>
             </div>
 
-            <div style="display: flex; gap: 12px; margin-top: 14px;">
-              <button class="btn btn-primary" onclick="saveGroqKeyPool()" style="flex: 1; justify-content: center;">
-                💾 Save Groq Key Pool
+            <!-- 2. ElevenLabs AI Voiceover Key -->
+            <div style="background: rgba(139, 92, 246, 0.04); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0; font-weight: 800; color: #fff;">
+                  🎙️ ElevenLabs API Key (Ultra-Realistic AI Voiceovers)
+                </label>
+                <a href="https://elevenlabs.io/app/voice-library" target="_blank" style="font-size: 11px; color: var(--violet); text-decoration: none;">elevenlabs.io &rarr;</a>
+              </div>
+              <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                <input type="password" id="settingsElevenLabsKey" class="form-input" placeholder="ElevenLabs API Key..." style="font-family: var(--font-mono); font-size: 12px;" />
+                <button type="button" class="btn btn-secondary" onclick="togglePasswordVisibility('settingsElevenLabsKey')" style="padding: 0 10px;">👁</button>
+              </div>
+              <div>
+                <label class="form-label" style="font-size: 11px;">Default Voice ID (e.g. 21m00Tcm4TlvDq8ikWAM)</label>
+                <input type="text" id="settingsElevenLabsVoiceId" class="form-input" placeholder="Default: Rachel (21m00Tcm4TlvDq8ikWAM)" style="font-size: 12px;" />
+              </div>
+            </div>
+
+            <!-- 3. OpenAI & Whisper API Key -->
+            <div style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0; font-weight: 800; color: #fff;">
+                  🤖 OpenAI / Whisper API Key (Optional Script & Voice Transcriptions)
+                </label>
+                <a href="https://platform.openai.com/api-keys" target="_blank" style="font-size: 11px; color: var(--emerald); text-decoration: none;">openai.com &rarr;</a>
+              </div>
+              <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                <input type="password" id="settingsOpenAIKey" class="form-input" placeholder="sk-..." style="font-family: var(--font-mono); font-size: 12px;" />
+                <button type="button" class="btn btn-secondary" onclick="togglePasswordVisibility('settingsOpenAIKey')" style="padding: 0 10px;">👁</button>
+              </div>
+              <div>
+                <label class="form-label" style="font-size: 11px;">OpenAI Model</label>
+                <input type="text" id="settingsOpenAIModel" class="form-input" value="gpt-4o-mini" style="font-size: 12px;" />
+              </div>
+            </div>
+
+            <!-- 4. Stability AI & Stock Media API Keys -->
+            <div style="background: rgba(245, 158, 11, 0.04); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0; font-weight: 800; color: #fff;">
+                  🎨 Stability AI / SDXL Key (Optional Image Generation Fallback)
+                </label>
+                <a href="https://platform.stability.ai" target="_blank" style="font-size: 11px; color: var(--amber); text-decoration: none;">stability.ai &rarr;</a>
+              </div>
+              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="password" id="settingsStabilityKey" class="form-input" placeholder="sk-..." style="font-family: var(--font-mono); font-size: 12px;" />
+                <button type="button" class="btn btn-secondary" onclick="togglePasswordVisibility('settingsStabilityKey')" style="padding: 0 10px;">👁</button>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0; font-weight: 800; color: #fff;">
+                  🎥 Pexels Stock Footage API Key (Optional Video B-Roll)
+                </label>
+                <a href="https://www.pexels.com/api/" target="_blank" style="font-size: 11px; color: var(--amber); text-decoration: none;">pexels.com &rarr;</a>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <input type="password" id="settingsPexelsKey" class="form-input" placeholder="Pexels API Key..." style="font-family: var(--font-mono); font-size: 12px;" />
+                <button type="button" class="btn btn-secondary" onclick="togglePasswordVisibility('settingsPexelsKey')" style="padding: 0 10px;">👁</button>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 14px;">
+              <button class="btn btn-primary" onclick="saveAllSettings()" style="flex: 1; justify-content: center; padding: 12px; font-weight: 800;">
+                💾 Save All Settings & API Keys
               </button>
-              <button class="btn btn-secondary" onclick="triggerReconciliation()">
+              <button class="btn btn-secondary" onclick="triggerReconciliation()" style="padding: 12px 16px;">
                 Reconcile Storage
               </button>
             </div>
           </div>
 
-          <!-- 1-Click 10-Worker One-Time Login Assistant Card -->
+          <!-- Card 2: 10-Worker One-Time Login Assistant (Dedicated Single-Extension Architecture) -->
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
                 <div class="card-icon">🔑</div>
                 <div>
                   <div class="card-title">10-Worker One-Time Login Assistant</div>
-                  <div class="card-subtitle">Log in once to Meta.ai & Flow on workers W01–W10 to save permanent sessions</div>
+                  <div class="card-subtitle">Strict 1-Worker-1-Extension: Isolated sessions for Meta.ai OR Google Flow</div>
                 </div>
+              </div>
+              <button class="btn btn-secondary" onclick="stopAllWorkers()" style="font-size: 11px; padding: 4px 10px; color: #f87171; border-color: rgba(248, 113, 113, 0.3);">
+                🛑 Stop All Workers
+              </button>
+            </div>
+
+            <!-- Architecture Info Box -->
+            <div style="background: rgba(0, 240, 255, 0.04); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px; font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+              <strong style="color: #fff;">Strict Dedicated Architecture:</strong> Each worker profile runs strictly 
+              <strong style="color: var(--cyan);">ONE service and ONE extension</strong> 
+              (either Google Flow OR Meta.ai). No dual tabs, no dual extensions. 
+              Click below to launch all 10 or launch individual workers. 
+              Log in once by hand in each window. Chrome permanently persists authentication in <code style="color: #fff;">Workers/Worker-Wnn</code>, 
+              so the automated farm runs continuously without re-prompting!
+            </div>
+
+            <!-- Master Launch Button -->
+            <button class="btn btn-primary" onclick="openWorkerLogin('ALL')" style="width: 100%; justify-content: center; padding: 13px; font-size: 14px; font-weight: 800; margin-bottom: 14px; background: linear-gradient(135deg, #00f0ff, #8b5cf6);">
+              🚀 Launch All 10 Worker Profiles for One-Time Login
+            </button>
+
+            <!-- Dynamic 10-Worker Grid (Populated by refreshFleetStatus) -->
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; display: flex; justify-content: space-between;">
+              <span>Worker Fleet Status & Individual Launch:</span>
+              <span style="color: var(--cyan);">1 Worker = 1 Extension</span>
+            </div>
+
+            <div id="workersLoginAssistantGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; max-height: 380px; overflow-y: auto;">
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W01</span>
+                  <span class="badge" style="background: rgba(0,240,255,0.15); color: var(--cyan); border: 1px solid rgba(0,240,255,0.3); font-size: 10px; font-weight: 800;">⚡ FLOW</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W01', 'flow')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ META
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W01', 'flow')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Flow Login
+                </button>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W02</span>
+                  <span class="badge" style="background: rgba(139,92,246,0.15); color: var(--violet); border: 1px solid rgba(139,92,246,0.3); font-size: 10px; font-weight: 800;">🌐 META</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W02', 'meta')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ FLOW
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W02', 'meta')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Meta Login
+                </button>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W03</span>
+                  <span class="badge" style="background: rgba(0,240,255,0.15); color: var(--cyan); border: 1px solid rgba(0,240,255,0.3); font-size: 10px; font-weight: 800;">⚡ FLOW</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W03', 'flow')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ META
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W03', 'flow')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Flow Login
+                </button>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W04</span>
+                  <span class="badge" style="background: rgba(139,92,246,0.15); color: var(--violet); border: 1px solid rgba(139,92,246,0.3); font-size: 10px; font-weight: 800;">🌐 META</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W04', 'meta')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ FLOW
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W04', 'meta')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Meta Login
+                </button>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W05</span>
+                  <span class="badge" style="background: rgba(0,240,255,0.15); color: var(--cyan); border: 1px solid rgba(0,240,255,0.3); font-size: 10px; font-weight: 800;">⚡ FLOW</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W05', 'flow')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ META
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W05', 'flow')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Flow Login
+                </button>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W06</span>
+                  <span class="badge" style="background: rgba(139,92,246,0.15); color: var(--violet); border: 1px solid rgba(139,92,246,0.3); font-size: 10px; font-weight: 800;">🌐 META</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W06', 'meta')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ FLOW
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W06', 'meta')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Meta Login
+                </button>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W07</span>
+                  <span class="badge" style="background: rgba(0,240,255,0.15); color: var(--cyan); border: 1px solid rgba(0,240,255,0.3); font-size: 10px; font-weight: 800;">⚡ FLOW</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W07', 'flow')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ META
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W07', 'flow')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Flow Login
+                </button>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W08</span>
+                  <span class="badge" style="background: rgba(139,92,246,0.15); color: var(--violet); border: 1px solid rgba(139,92,246,0.3); font-size: 10px; font-weight: 800;">🌐 META</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W08', 'meta')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ FLOW
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W08', 'meta')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Meta Login
+                </button>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W09</span>
+                  <span class="badge" style="background: rgba(0,240,255,0.15); color: var(--cyan); border: 1px solid rgba(0,240,255,0.3); font-size: 10px; font-weight: 800;">⚡ FLOW</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W09', 'flow')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ META
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W09', 'flow')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Flow Login
+                </button>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-family: var(--font-mono); font-weight: 800; font-size: 13px; color: #fff;">W10</span>
+                  <span class="badge" style="background: rgba(139,92,246,0.15); color: var(--violet); border: 1px solid rgba(139,92,246,0.3); font-size: 10px; font-weight: 800;">🌐 META</span>
+                </div>
+                <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--emerald); font-size: 10px; font-weight: 700;">🟢 Session Saved</span>
+                  <button type="button" class="btn btn-secondary" onclick="toggleWorkerProvider('W10', 'meta')" title="Switch between Flow and Meta" style="font-size: 9.5px; padding: 2px 6px;">
+                    ⇄ FLOW
+                  </button>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="openWorkerLogin('W10', 'meta')" style="width: 100%; justify-content: center; font-size: 11px; padding: 5px 8px; font-weight: 700;">
+                  🚀 Open Meta Login
+                </button>
               </div>
             </div>
 
-            <div style="background: rgba(0, 240, 255, 0.04); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px; font-size: 12px; color: var(--text-muted); line-height: 1.45;">
-              <strong style="color: #fff;">How it works:</strong> Click below to launch browser profiles with 
-              <span style="color: var(--cyan); font-weight: 700;">Meta.ai</span> and 
-              <span style="color: var(--violet); font-weight: 700;">Flow</span> tabs open. 
-              Log in once by hand on each worker. Chrome persists cookies in <code style="color: #fff;">profiles/worker_XX</code>, so the automated farm runs continuously without re-prompting.
-            </div>
-
-            <button class="btn btn-primary" onclick="openWorkerLogin('ALL')" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px; font-weight: 800; margin-bottom: 14px;">
-              🚀 Launch 10 Worker Profiles for One-Time Login
-            </button>
-
-            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">
-              Or Launch Individual Worker Profile:
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W01')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W01</button>
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W02')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W02</button>
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W03')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W03</button>
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W04')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W04</button>
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W05')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W05</button>
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W06')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W06</button>
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W07')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W07</button>
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W08')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W08</button>
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W09')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W09</button>
-              <button class="btn btn-secondary" onclick="openWorkerLogin('W10')" style="font-size: 11px; padding: 5px 0; justify-content: center;">W10</button>
+            <!-- Quick Directory Shortcuts -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-secondary" onclick="openOutputFolder('workers')" style="font-size: 11px; padding: 8px 10px; flex: 1; justify-content: center;">
+                📁 Open Workers Profiles Folder
+              </button>
+              <button class="btn btn-secondary" onclick="openOutputFolder('logs')" style="font-size: 11px; padding: 8px 10px; flex: 1; justify-content: center;">
+                📄 Open Studio Logs Folder
+              </button>
             </div>
           </div>
 
         </div>
 
-        <!-- Real-Time Telemetry Logs Card (Full Width) -->
-        <div class="card">
+        <!-- Real-Time Telemetry & System Diagnostics Logs (Full Width) -->
+        <div class="card" style="margin-top: 16px;">
           <div class="card-header">
             <div class="card-title-group">
               <div class="card-icon">📡</div>
               <div>
-                <div class="card-title">Live Telemetry & System Event Stream</div>
-                <div class="card-subtitle">Real-time worker lifecycle events, CAPTCHA alerts & service logs</div>
+                <div class="card-title">Live Telemetry & System Diagnostics Event Stream</div>
+                <div class="card-subtitle">Real-time worker lifecycle events, render logs, and physical file stream</div>
               </div>
             </div>
-            <button class="btn btn-secondary" onclick="fetchLogs()" style="font-size: 12px; padding: 6px 12px;">Refresh</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <a href="/api/v1/logs/raw" target="_blank" class="btn btn-secondary" style="font-size: 11.5px; padding: 6px 12px; text-decoration: none;">
+                📄 View studio.log
+              </a>
+              <button class="btn btn-secondary" onclick="fetchLogs()" style="font-size: 11.5px; padding: 6px 12px;">Refresh</button>
+            </div>
           </div>
 
-          <div id="telemetryLogBox" style="background: rgba(5, 5, 10, 0.85); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 14px; height: 320px; overflow-y: auto; font-family: var(--font-mono); font-size: 12px;">
+          <div id="telemetryLogBox" style="background: rgba(5, 5, 10, 0.9); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 14px; height: 300px; overflow-y: auto; font-family: var(--font-mono); font-size: 12px; line-height: 1.5;">
             <!-- Dynamic logs -->
           </div>
         </div>
       </section>
 
-    </main>
+      <!-- ==================== MODALS ==================== -->
 
-    <!-- App Footer -->
-    <footer class="app-footer">
-      <div>🎬 <strong>Stickman Studio V2</strong> • Local Windows Desktop Production Engine</div>
-      <div style="display: flex; gap: 20px;">
-        <span>Architecture: 10 Workers Max</span>
-        <span>Dual Provider: Flow + Meta</span>
-        <span>Output: 1080p MP4</span>
+    <!-- ==================== FLEET LAUNCH CONFIRMATION MODAL ==================== -->
+  <div id="fleetConfirmModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 560px; border-radius: var(--radius-md); box-shadow: 0 20px 60px rgba(0,0,0,0.85); background: #0c101d; border: 1px solid var(--border-card);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div style="font-family: var(--font-display); font-size: 19px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>🚀</span> Fleet Launch Confirmation
+        </div>
+        <button onclick="closeFleetConfirmModal()" style="background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer;">&times;</button>
       </div>
-    </footer>
 
+      <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 18px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: center;">
+          <div>
+            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Total Prompts</div>
+            <strong id="modalFleetTotalPrompts" style="font-size: 20px; color: #fff;">0</strong>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Batch / Worker</div>
+            <strong style="font-size: 20px; color: var(--cyan);">50</strong>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Needed Workers</div>
+            <strong id="modalFleetTotalNeeded" style="font-size: 20px; color: var(--amber);">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 18px;">
+        <label style="font-size: 12px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; display: block;">
+          Configure Worker Fleet Allocation:
+        </label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: var(--radius-sm); padding: 12px 14px;">
+            <label style="font-size: 12px; font-weight: 800; color: var(--violet); display: block; margin-bottom: 6px;">
+              🟣 Meta AI Workers:
+            </label>
+            <input type="number" id="modalMetaCount" min="0" max="10" value="2" class="form-input" style="font-size: 16px; font-weight: 800; text-align: center;" oninput="updateFleetModalSummary()" />
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Generates via Meta.ai</div>
+          </div>
+          <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); padding: 12px 14px;">
+            <label style="font-size: 12px; font-weight: 800; color: var(--emerald); display: block; margin-bottom: 6px;">
+              🟢 Google Flow Workers:
+            </label>
+            <input type="number" id="modalFlowCount" min="0" max="10" value="2" class="form-input" style="font-size: 16px; font-weight: 800; text-align: center;" oninput="updateFleetModalSummary()" />
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Generates via Google Flow</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="modalFleetStrategyNote" style="background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 12px; color: var(--cyan); margin-bottom: 20px; line-height: 1.5;">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn btn-secondary" onclick="closeFleetConfirmModal()" style="padding: 9px 18px;">Cancel</button>
+        <button type="button" class="btn btn-emerald" onclick="executeConfirmedFleetLaunch()" style="padding: 10px 24px; font-weight: 800; font-size: 14px; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); cursor: pointer;">
+          🚀 Launch Fleet &amp; Generate Now
+        </button>
+      </div>
+    </div>
   </div>
 
-  <!-- ==================== MODALS ==================== -->
-
-  <!-- ==================== CANONICAL MULTI-MODE NEW PROJECT MODAL ==================== -->
+<!-- ==================== CANONICAL MULTI-MODE NEW PROJECT MODAL ==================== -->
   <div id="newProjectModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 720px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-content" style="max-width: 540px; border-radius: var(--radius-md); box-shadow: 0 20px 60px rgba(0,0,0,0.8);">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <div style="font-family: var(--font-display); font-size: 20px; font-weight: 800; color: #fff;">
+        <div style="font-family: var(--font-display); font-size: 19px; font-weight: 800; color: #fff;">
           + Create New Production Project
         </div>
-        <button onclick="closeNewProjectModal()" style="background: none; border: none; color: var(--text-dim); font-size: 26px; cursor: pointer;">&times;</button>
+        <button onclick="closeNewProjectModal()" style="background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer;">&times;</button>
       </div>
 
-      <!-- Mode Selector Tabs -->
-      <div class="modal-tabs">
-        <button type="button" id="tabNewProjMode1" class="modal-tab-btn active" onclick="switchNewProjectModalTab('MODE_1')">
-          MODE 1 — Generate Everything
-        </button>
-        <button type="button" id="tabNewProjMode2" class="modal-tab-btn" onclick="switchNewProjectModalTab('MODE_2')">
-          MODE 2 — Existing Prompt List
-        </button>
+      <div style="background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 18px; font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+        <strong style="color: var(--cyan);">Fast Project Setup:</strong> Enter your project name below. All prompt importing, story scripting, and character consistency are configured directly in <strong style="color: #fff;">Step 1</strong>.
       </div>
 
-      <input type="hidden" id="newProjActiveMode" value="MODE_1" />
-
-      <!-- ==================== MODE 1 FIELDS ==================== -->
-      <div id="modalMode1Container">
-        <div style="background: rgba(0, 240, 255, 0.04); border: 1px solid rgba(0, 240, 255, 0.18); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: var(--text-muted);">
-          <strong style="color: var(--cyan);">Mode 1 Workflow:</strong> Provide Title, Voiceover, Script, Master Prompt & Character Reference. The Groq AI Story Engine will auto-generate sequential prompt scenes matching your audio duration.
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Video Title / Project Name</label>
-          <input type="text" id="newProjName" class="form-input" placeholder="e.g. The Untold Story of the Shadow Stickman Episode 1" />
-        </div>
-
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Voiceover Audio File / Path</label>
-            <div style="display: flex; gap: 8px;">
-              <input type="file" id="newProjVoiceoverFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleModalVoiceoverFile(this, 'm1')" />
-              <input type="hidden" id="newProjVoiceoverPath" /><div id="newProjVoiceoverStatus" class="file-picked-chip" style="display: none;"></div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Duration & Auto-Detection</label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button type="button" class="btn btn-secondary" onclick="autoDetectModalDuration('m1')" style="white-space: nowrap; font-size: 12px; padding: 8px 12px;">
-                ⚡ Auto-Detect
-              </button>
-              <input type="number" id="newProjDuration" class="form-input" value="72" step="0.5" oninput="updateModalPromptCalculation('m1')" style="width: 100px;" />
-              <span id="newProjDurationBadge" class="brand-badge" style="white-space: nowrap;">72.0s</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Pacing Preset</label>
-            <select id="newProjPacing" class="form-select" onchange="updateModalPromptCalculation('m1')">
-              <option value="3/4s" selected>3 images / 4 sec (0.75x - Dynamic Story Recommended)</option>
-              <option value="2/4s">2 images / 4 sec (0.50x - YouTube Standard)</option>
-              <option value="1/4s">1 image / 4 sec (0.25x - Relaxed / Cinematic)</option>
-              <option value="4/4s">4 images / 4 sec (1.00x - Fast-Paced Action)</option>
-              <option value="5/4s">5 images / 4 sec (1.25x - Hyper Energetic)</option>
-            </select>
-          </div>
-
-        <!-- Live Audio Pacing & Generation Forecast in Modal -->
-        <div class="audio-forecast-card" id="modalForecastCardM1" style="margin-bottom: 14px; margin-top: 10px;">
-          <div class="forecast-item">
-            <span class="forecast-title">Audio Duration</span>
-            <span class="forecast-value text-emerald" id="modalForecastDurM1">72.0s</span>
-          </div>
-          <div class="forecast-arrow">→</div>
-          <div class="forecast-item">
-            <span class="forecast-title">Pacing Rule</span>
-            <span class="forecast-value" id="modalForecastPacingM1">3 imgs / 4s (1.33s/image)</span>
-          </div>
-          <div class="forecast-arrow">→</div>
-          <div class="forecast-item highlight">
-            <span class="forecast-title">Required Prompts &amp; Images</span>
-            <span class="forecast-value" id="modalTargetPromptsM1">54 Prompts &amp; 54 Images</span>
-          </div>
-        </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Background Music (Optional)</label>
-            <div style="display: flex; gap: 8px;">
-              <input type="file" id="newProjMusicFile" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleModalMusicFile(this, 'm1')" />
-              <input type="hidden" id="newProjMusicPath" /><div id="newProjMusicStatus" class="file-picked-chip" style="display: none;"></div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">
-              BGM Volume: <span id="newProjMusicVolLabel" style="color: var(--cyan); font-weight: 700;">7% (Default ducking)</span>
-            </label>
-            <input type="range" id="newProjMusicVol" min="0" max="100" value="7" class="form-input" style="padding: 4px 0;" oninput="document.getElementById('newProjMusicVolLabel').textContent = this.value + '% (Ducking)'" />
-          </div>
-        </div>
-
-        <div class="char-ref-picker-card" style="margin-bottom: 14px; margin-top: 6px;">
-          <div class="char-ref-thumb-box" id="newProjCharThumbBox">
-            <span class="char-ref-thumb-placeholder" id="newProjCharPlaceholder">🎭</span>
-            <img id="newProjCharThumb" class="char-ref-thumb-img" alt="Character Reference" />
-          </div>
-          <div class="char-ref-meta">
-            <div class="char-ref-name">Character Consistency Reference Image</div>
-            <div class="char-ref-status" id="newProjCharStatusText">Pick reference image to lock character appearance across all scenes</div>
-            <div style="display: flex; gap: 8px; margin-top: 6px;">
-              <input type="file" id="newProjCharFile" accept="image/*" style="display: none;" onchange="handleModalCharImage(this, 'm1')" />
-              <button type="button" class="btn btn-secondary" onclick="document.getElementById('newProjCharFile').click()" style="font-size: 11.5px; padding: 6px 12px; cursor: pointer;">
-                🖼️ Pick Reference Image
-              </button>
-              <button type="button" class="btn btn-secondary" id="newProjCharRemoveBtn" onclick="removeModalCharImage('m1')" style="font-size: 11.5px; padding: 6px 10px; display: none; color: var(--rose); cursor: pointer;">
-                ✖ Remove
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Character Name</label>
-            <input type="text" id="newProjCharName" class="form-input" value="Main Stickman" />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Character Consistency Prompt Tags</label>
-            <input type="text" id="newProjCharDesc" class="form-input" placeholder="e.g. Minimalist stickman hero wearing red headband and blue sneakers, black ink outlines" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <label class="form-label" style="margin-bottom: 0;">Voiceover / Story Script</label>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <input type="file" id="newProjScriptFile" accept=".txt,.text,.md" style="display: none;" onchange="handleScriptFile(this, 'modal_m1')" />
-              <button type="button" class="btn btn-secondary" onclick="document.getElementById('newProjScriptFile').click()" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">
-                📄 Pick .txt File
-              </button>
-              <span id="newProjScriptWordCount" style="color: var(--cyan); font-weight: 700; font-size: 11px;">0 words</span>
-            </div>
-          </div>
-          <textarea id="newProjScript" class="form-textarea" placeholder="Paste your story or voiceover script here..." style="min-height: 120px;" oninput="updateModalScriptWordCount('m1')"></textarea>
-        </div>
-
-        <details style="margin-bottom: 16px; background: rgba(0, 0, 0, 0.3); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); padding: 10px 14px;">
-          <summary style="font-size: 12px; font-weight: 700; color: var(--cyan); cursor: pointer;">
-            Customize Master Prompt V7 Directive
-          </summary>
-          <textarea id="newProjMasterPrompt" class="form-textarea" style="font-family: var(--font-mono); font-size: 11.5px; min-height: 100px; margin-top: 8px;"></textarea>
-        </details>
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label class="form-label" style="font-weight: 700;">Project Name / Video Title <span style="color: var(--rose);">*</span></label>
+        <input type="text" id="newProjNameSimple" class="form-input" placeholder="e.g. Stickman Epic Quest Episode 1" style="font-size: 14px; padding: 10px 14px;" />
       </div>
 
-      <!-- ==================== MODE 2 FIELDS ==================== -->
-      <div id="modalMode2Container" style="display: none;">
-        <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.22); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: var(--text-muted);">
-          <strong style="color: var(--violet);">Mode 2 Workflow:</strong> You already have a formatted prompt list (.md / .txt). Upload or paste it directly. Also provide voiceover audio, matching script, and character reference.
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Video Title / Project Name</label>
-          <input type="text" id="newProjNameM2" class="form-input" placeholder="e.g. Stickman Epic Quest Episode 1" />
-        </div>
-
-        <div class="form-group">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <label class="form-label" style="margin-bottom: 0;">Existing Prompt List (001_..., 002_...)</label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="file" id="newProjPromptFile" accept=".txt,.md,.json" style="display: none;" onchange="handleModalPromptFile(this)" />
-              <button type="button" class="btn btn-secondary" onclick="document.getElementById('newProjPromptFile').click()" style="font-size: 11.5px; padding: 4px 10px;">
-                📁 Upload .txt / .md
-              </button>
-              <span id="newProjPromptCountBadge" class="brand-badge">0 prompts</span>
-            </div>
-          </div>
-          <textarea id="newProjPromptList" class="form-textarea" placeholder="001_A simple stickman standing in the neon rain&#10;002_The stickman turns to face the glowing portal&#10;003_He leaps forward into the light..." style="min-height: 140px;" oninput="updateModalPromptListCount()"></textarea>
-        </div>
-
-        <div class="form-group">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <label class="form-label" style="margin-bottom: 0;">Accompanying Story Script / Transcript</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="file" id="newProjScriptFileM2" accept=".txt,.text,.md" style="display: none;" onchange="handleScriptFile(this, 'modal_m2')" />
-              <button type="button" class="btn btn-secondary" onclick="document.getElementById('newProjScriptFileM2').click()" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">
-                📄 Pick .txt File
-              </button>
-            </div>
-          </div>
-          <textarea id="newProjScriptM2" class="form-textarea" placeholder="Paste the matching voiceover script for captions & timeline alignment..." style="min-height: 80px;"></textarea>
-        </div>
-
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Voiceover Audio File / Path</label>
-            <div style="display: flex; gap: 8px;">
-              <input type="file" id="newProjVoiceoverFileM2" accept="audio/*" class="form-input" style="flex: 1;" onchange="handleModalVoiceoverFile(this, 'm2')" />
-              <input type="hidden" id="newProjVoiceoverPathM2" /><div id="newProjVoiceoverStatusM2" class="file-picked-chip" style="display: none;"></div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Duration & Auto-Detection</label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button type="button" class="btn btn-secondary" onclick="autoDetectModalDuration('m2')" style="white-space: nowrap; font-size: 12px; padding: 8px 12px;">
-                ⚡ Auto-Detect
-              </button>
-              <input type="number" id="newProjDurationM2" class="form-input" value="72" step="0.5" style="width: 100px;" />
-              <span id="newProjDurationBadgeM2" class="brand-badge" style="white-space: nowrap;">72.0s</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Pacing Ratio Verification</label>
-            <select id="newProjPacingM2" class="form-select">
-              <option value="3/4s" selected>3 images / 4 sec (0.75x - Dynamic Story Recommended)</option>
-              <option value="2/4s">2 images / 4 sec (0.50x - YouTube Standard)</option>
-              <option value="1/4s">1 image / 4 sec (0.25x - Cinematic)</option>
-              <option value="4/4s">4 images / 4 sec (1.00x - Fast-Paced)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">
-              BGM (Optional) & 7% Volume: <span id="newProjMusicVolLabelM2" style="color: var(--cyan); font-weight: 700;">7%</span>
-            </label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="hidden" id="newProjMusicPathM2" />
-              <input type="range" id="newProjMusicVolM2" min="0" max="100" value="7" style="width: 90px;" oninput="document.getElementById('newProjMusicVolLabelM2').textContent = this.value + '%'" />
-            </div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Character Reference Name</label>
-            <input type="text" id="newProjCharNameM2" class="form-input" value="Main Stickman" />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Character Visual Consistency Description</label>
-            <input type="text" id="newProjCharDescM2" class="form-input" placeholder="e.g. Minimalist stickman hero, red headband, sneakers" />
-          </div>
-        </div>
-      </div>
-
-      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; border-top: 1px solid var(--border-subtle); padding-top: 16px;">
-        <button type="button" class="btn btn-secondary" onclick="closeNewProjectModal()">Cancel</button>
-        <button type="button" class="btn btn-primary" onclick="submitNewProject()" style="padding: 10px 22px; font-size: 14px; font-weight: 800;">
-          🚀 Create Production Project
+      <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-subtle); padding-top: 16px;">
+        <button type="button" class="btn btn-secondary" onclick="closeNewProjectModal()" style="padding: 9px 18px;">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="submitSimpleNewProject()" style="padding: 9px 24px; font-weight: 800; font-size: 13.5px; box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);">
+          + Create Project &amp; Open Step 1
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Assign Ranges Modal -->
-  <div id="rangesModal" class="modal-overlay">
-    <div class="modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px;">
-        <div style="font-family: var(--font-display); font-size: 20px; font-weight: 800; color: #fff;">⚡ Assign Worker Fixed Ranges</div>
-        <button onclick="closeRangesModal()" style="background: none; border: none; color: var(--text-dim); font-size: 26px; cursor: pointer;">&times;</button>
-      </div>
-      <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 18px;">
-        Assign non-overlapping prompt ranges to online workers for parallel execution.
-      </div>
-      <div id="rangesList" style="display: flex; flex-direction: column; gap: 12px; max-height: 300px; overflow-y: auto; margin-bottom: 22px;">
-        <!-- dynamic rows -->
-      </div>
-      <div style="display: flex; justify-content: flex-end; gap: 12px;">
-        <button class="btn btn-secondary" onclick="closeRangesModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="submitRanges()">Apply Partition</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Image Lightbox Modal -->
   <div id="lightboxModal" class="modal-overlay" onclick="closeLightbox()">
     <div class="modal-content" style="max-width: 950px; width: 92vw; padding: 20px; background: #070912;" onclick="event.stopPropagation()">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
@@ -1511,6 +2189,6 @@
 
   <!-- Scripts -->
   <script src="/caption_engine.js"></script>
-  <script src="/app_v2.js"></script>
+  <script src="/app_v2.js?v=2.2"></script>
 </body>
 </html>

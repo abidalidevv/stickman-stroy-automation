@@ -14,9 +14,11 @@ const path = require('path');
 const os = require('os');
 const { spawn, exec } = require('child_process');
 const logger = require('./logger');
+const db = require('./db');
 
-const WORKERS_BASE_DIR = path.resolve('E:/stickman-video-automation/Workers');
-const EXTENSIONS_BASE_DIR = path.resolve('E:/stickman-video-automation/extensions');
+const ROOT_DIR = process.env.STICKMAN_ROOT || path.resolve(__dirname, '../../');
+const WORKERS_BASE_DIR = process.env.WORKERS_BASE_DIR || path.join(ROOT_DIR, 'Workers');
+const EXTENSIONS_BASE_DIR = process.env.EXTENSIONS_BASE_DIR || path.join(ROOT_DIR, 'extensions');
 const MAX_ACTIVE_WORKERS = 10;
 
 class BrowserProfileManager {
@@ -112,32 +114,36 @@ class BrowserProfileManager {
 
   prepareWorkerExtension(workerId, provider) {
     const prov = (provider || '').toLowerCase();
-    // If workerId is W01 and flow, use the base extension directly
-    if (workerId === 'W01' && prov === 'flow') {
-      return this.getBaseExtensionPath('flow');
-    }
-    // If workerId is W02 and meta, use the base extension directly
-    if (workerId === 'W02' && prov === 'meta') {
-      return this.getBaseExtensionPath('meta');
+    const baseExtDir = this.getBaseExtensionPath(prov);
+    if (!baseExtDir || !fs.existsSync(baseExtDir)) {
+      throw new Error(`Base extension not found for provider '${provider}' at ${baseExtDir}`);
     }
 
-    // Dynamic workers (W03..W10): create isolated extension copy inside profileDir
     const profileDir = this.getProfileDir(workerId);
     const workerExtDir = path.join(profileDir, 'extension');
-    const baseExtDir = this.getBaseExtensionPath(prov);
 
-    if (!baseExtDir || !fs.existsSync(baseExtDir)) {
-      throw new Error(`Base extension not found for provider '${provider}'`);
+    // Check if worker extension already exists and matches target provider
+    let needsProvisioning = !fs.existsSync(workerExtDir);
+    const configPath = path.join(workerExtDir, 'worker-config.js');
+    if (!needsProvisioning && fs.existsSync(configPath)) {
+      try {
+        const existingConfig = fs.readFileSync(configPath, 'utf8');
+        if (!existingConfig.includes(`WORKER_ID = "${workerId}"`) || !existingConfig.includes(`PROVIDER = "${prov}"`)) {
+          needsProvisioning = true;
+          fs.rmSync(workerExtDir, { recursive: true, force: true });
+        }
+      } catch (e) {
+        needsProvisioning = true;
+      }
     }
 
-    if (!fs.existsSync(workerExtDir)) {
-      logger.info('PROFILE_MANAGER', `Provisioning isolated extension for worker ${workerId} in ${workerExtDir}`);
+    if (needsProvisioning) {
+      logger.info('PROFILE_MANAGER', `Provisioning isolated extension for worker ${workerId} (${prov}) into ${workerExtDir}`);
       this.copyDirRecursive(baseExtDir, workerExtDir);
     }
 
-    // Ensure worker-config.js has the exact WORKER_ID
-    const configPath = path.join(workerExtDir, 'worker-config.js');
-    const configContent = `export const WORKER_ID = "${workerId}";\nexport const PROVIDER = "${provider}";\n`;
+    // Always ensure worker-config.js contains exact WORKER_ID and PROVIDER
+    const configContent = `export const WORKER_ID = "${workerId}";\nexport const PROVIDER = "${prov}";\n`;
     fs.writeFileSync(configPath, configContent, 'utf8');
 
     return workerExtDir;
@@ -174,14 +180,21 @@ class BrowserProfileManager {
     const extensionPath = this.prepareWorkerExtension(workerId, provider);
     const targetUrl = this.getTargetUrl(provider);
 
+    // Clean stray processes, locks, and stale session restore files
+    this.cleanWorkerProcessesAndLocks(workerId);
+    const sessionsDir = path.join(profileDir, 'Default', 'Sessions');
+    if (fs.existsSync(sessionsDir)) {
+      try { fs.rmSync(sessionsDir, { recursive: true, force: true }); } catch (e) {}
+    }
+
     const args = [
       `--user-data-dir=${profileDir}`,
       `--load-extension=${extensionPath}`,
       '--no-first-run',
       '--no-default-browser-check',
-      '--disable-background-networking',
-      '--disable-default-apps',
-      '--disable-sync',
+      '--window-size=1280,820',
+      '--disable-session-crashed-bubble',
+      '--hide-crash-restore-bubble',
       targetUrl
     ];
 
@@ -322,6 +335,134 @@ class BrowserProfileManager {
       chrome_path: this.chromePath,
       telemetry
     };
+  }
+
+  /**
+   * Launch a clean interactive Chrome instance specifically for One-Time Login
+   * Opens both Meta.ai and Flow tabs, cleans lockfiles, enables persistent session saving
+   */
+  /**
+   * Thoroughly terminate any hanging Chrome processes associated with a worker and remove lockfiles
+   */
+  cleanWorkerProcessesAndLocks(workerId = null) {
+    if (process.platform === 'win32') {
+      const { execFileSync } = require('child_process');
+      try {
+        const filter = workerId ? `*Worker-${workerId}*` : '*Worker-W*';
+        const psCmd = `Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'chrome.exe' -and $_.CommandLine -like '${filter}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+        execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psCmd], { stdio: 'ignore' });
+      } catch (e) { logger.warn('PROFILE_MANAGER', `Process cleanup error: ${e.message}`); }
+    }
+    const workers = workerId ? [workerId] : Array.from({ length: 10 }, (_, i) => `W${String(i + 1).padStart(2, '0')}`);
+    for (const w of workers) {
+      const pDir = this.getProfileDir(w);
+      const staleLocks = ['SingletonLock', 'lockfile', 'SingletonSocket', 'SingletonCookie'];
+      for (const lock of staleLocks) {
+        try {
+          const lPath = path.join(pDir, lock);
+          if (fs.existsSync(lPath)) fs.unlinkSync(lPath);
+        } catch (e) {}
+      }
+    }
+  }
+
+  /**
+   * Launch a clean interactive Chrome instance for One-Time Login
+   * Strictly 1 worker = 1 service = 1 extension (Meta.ai OR Google Flow)
+   * Never dual tabs, never dual extensions
+   */
+  async launchLoginAssistant(workerId, requestedProvider = null) {
+    this.validateWorkerId(workerId);
+
+    // Stop and kill any processes holding this worker's directory & delete lockfiles
+    this.cleanWorkerProcessesAndLocks(workerId);
+    this.activeProcesses.delete(workerId);
+    await new Promise(r => setTimeout(r, 400));
+
+    // Resolve provider from argument, DB, or fallback
+    let provider = (requestedProvider || '').toLowerCase();
+    if (!provider || !['meta', 'flow'].includes(provider)) {
+      try {
+        const row = await db.get('SELECT provider FROM workers WHERE id = ?', [workerId]);
+        if (row && row.provider) {
+          provider = row.provider.toLowerCase();
+        }
+      } catch (e) {}
+    }
+    if (!provider || !['meta', 'flow'].includes(provider)) {
+      const num = parseInt(workerId.replace(/\D/g, ''), 10);
+      provider = (num % 2 === 1) ? 'flow' : 'meta';
+    }
+
+    const profileDir = this.getProfileDir(workerId);
+    const extensionPath = this.prepareWorkerExtension(workerId, provider);
+    const targetUrl = this.getTargetUrl(provider);
+
+    // Strictly ONE isolated extension and strictly ONE target URL
+    const args = [
+      `--user-data-dir=${profileDir}`,
+      `--load-extension=${extensionPath}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--window-size=1280,820',
+      targetUrl
+    ];
+
+    logger.info('WORKER_LOGIN', `Launching 1-time login assistant for worker ${workerId} (${provider.toUpperCase()}) -> ${targetUrl} [Profile: ${profileDir}]`);
+
+    const child = spawn(this.chromePath, args, {
+      detached: true,
+      stdio: 'ignore'
+    });
+
+    const info = {
+      workerId,
+      provider,
+      pid: child.pid,
+      profileDir,
+      extensionPath,
+      targetUrl,
+      startTime: new Date().toISOString(),
+      isLoginMode: true
+    };
+
+    this.activeProcesses.set(workerId, info);
+
+    child.on('exit', (code, signal) => {
+      logger.info('WORKER_LOGIN', `Worker ${workerId} (${provider}) login window closed (code: ${code}, signal: ${signal})`);
+      this.activeProcesses.delete(workerId);
+    });
+
+    child.unref();
+
+    return {
+      success: true,
+      workerId,
+      provider,
+      pid: child.pid,
+      profileDir,
+      targetUrl,
+      extensionPath
+    };
+  }
+
+  /**
+   * Stop all active worker processes
+   */
+  async stopAllWorkers() {
+    logger.info('PROFILE_MANAGER', `Stopping all ${this.activeProcesses.size} active worker processes...`);
+    const results = [];
+    for (const [wId, info] of Array.from(this.activeProcesses.entries())) {
+      try {
+        const res = await this.stopWorker(wId);
+        results.push(res);
+      } catch (e) {
+        results.push({ success: false, workerId: wId, error: e.message });
+      }
+    }
+    this.cleanWorkerProcessesAndLocks();
+    this.activeProcesses.clear();
+    return { success: true, count: results.length, results };
   }
 }
 
