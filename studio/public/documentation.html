@@ -1480,6 +1480,27 @@ sequenceDiagram
         In Step 4 (Video Preview / CapCut Editor), swapped the default active sub-tab from Effects to <strong>Captions</strong> (<code>#toolTab-captions</code> active, <code>#tabContent-captions</code> flex). Added programmatic auto-selection in <code>goToStep(4)</code> so the synchronized subtitles and caption styling controls are immediately accessible upon navigating to the editor.
       </p>
     </div>
+
+    <div style="background: #1e293b; padding: 15px; border-radius: 6px;">
+      <h4 style="color: #38bdf8; margin: 0 0 8px 0;">4. Universal 10-Style Smart Prompt Parser</h4>
+      <p style="color: #94a3b8; font-size: 14px; margin: 0;">
+        Eliminated all prompt format restriction barriers. Supports raw unnumbered text, full Markdown prompt packs with titles, specs, &amp; consistency bible preambles (automatically stripped of metadata), <code>001_</code> prefix, standard <code>1.</code> lists, scene tags, bracketed lists, bullets, and JSON. Tested on 655 documentary prompts with instant 0.19s sequential auto-indexing.
+      </p>
+    </div>
+
+    <div style="background: #1e293b; padding: 15px; border-radius: 6px;">
+      <h4 style="color: #38bdf8; margin: 0 0 8px 0;">5. 50-Prompt Continuous Batch Lease &amp; Auto-Handoff</h4>
+      <p style="color: #94a3b8; font-size: 14px; margin: 0;">
+        Workers lease large 50-prompt batches simultaneously. Resolved SQLite schema mismatch (<code>image_file_path</code> &rarr; <code>file_path</code>, <code>file_name</code>; <code>completed_at</code> &rarr; <code>updated_at</code>), ensuring workers seamlessly transition from Prompts 1–50 to 51–100 to 101–150 without manual intervention.
+      </p>
+    </div>
+
+    <div style="background: #1e293b; padding: 15px; border-radius: 6px;">
+      <h4 style="color: #38bdf8; margin: 0 0 8px 0;">6. Responsive Header &amp; Immediate Project Deletion</h4>
+      <p style="color: #94a3b8; font-size: 14px; margin: 0;">
+        Adaptive fluid header with media queries (<code>1400px</code>, <code>1200px</code>, <code>1050px</code>, <code>800px</code>) prevents badge wrapping on any monitor. Added immediate <code>&#128465;&#65039;</code> Delete Project button with confirmation dialog and cascading database cleanup.
+      </p>
+    </div>
   </div>
 </div>
 
