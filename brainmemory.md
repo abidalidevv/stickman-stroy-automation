@@ -9,9 +9,10 @@
 
 * **Project Title:** Stickman Studio V2 & Autonomous Chrome Extension Cluster
 * **Lead Engineer & Creator:** Abid Ali (`abidalidevv`)
-* **Primary Repositories:**
-  1. `E:\stickman-video-automation` (Git: `https://github.com/abidalidevv/stickman-stroy-automation.git`) — The Core Studio Server, UI, Database, Worker Farm Orchestrator, Ingestion Engine, Timeline Editor & FFmpeg Video Renderer.
-  2. `C:\Users\Ali\Desktop\meta automation` (Git: `https://github.com/abidalidevv/Meta-Automation-Auto-Meta-on-Meta.ai.git`) — The Meta.ai Manifest V3 Autonomous Chrome Side Panel Extension & Bridge Client.
+* **Primary Permanent Workspace Locations:**
+  1. `D:\Projects\chrome extention projects\meta automation` (Git: `https://github.com/abidalidevv/Meta-Automation-Auto-Meta-on-Meta.ai.git`) — **PERMANENT HOME for Meta.ai Chrome Extension** (Lives safely on Drive D:, 100% safe from Windows C: reinstall).
+  2. `E:\stickman-video-automation` (Git: `https://github.com/abidalidevv/stickman-stroy-automation.git`) — **PERMANENT HOME for Stickman Studio Engine** (Lives safely on Drive E:, 100% safe from Windows C: reinstall).
+  3. `D:\Projects\chrome extention projects\veo-automation-with Mbmirza` — **PERMANENT HOME for Google Flow Chrome Extension**.
 * **Current Version:** `v2.5.0` (Production Audited, 10-Worker Fleet, Universal 10-Style Prompt Support, 50-Prompt Batch Leasing).
 * **Core Daemon Port:** `http://127.0.0.1:45450` (or `http://localhost:45450`).
 * **Database:** SQLite in WAL Mode (`E:\stickman-video-automation\studio\data\studio.sqlite`).
@@ -39,9 +40,21 @@ Creating long-form YouTube documentary videos (10 minutes to 2 hours) normally r
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                              PERMANENT DISK STORAGE MAP                                │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│ DRIVE E: (Safe from Windows C: Reinstallation - Permanent Project Storage)            │
+│ DRIVE D: (Safe from Windows C: Reinstallation - Permanent Chrome Extensions Home)     │
+│  ├─ D:\Projects\chrome extention projects\meta automation\                           │
+│  │   ├─ brainmemory.md                     [Permanent Master Brain Memory Copy]        │
+│  │   ├─ STATUS.md                          [System Status & Verification Report]       │
+│  │   ├─ STUDIO_V2_COMPLETE_MANUAL.md       [Full Operational Manual Copy]              │
+│  │   ├─ manifest.json                      [Chrome Manifest V3 Extension Config]       │
+│  │   ├─ worker-config.js                   [Active Worker Profile Switcher]            │
+│  │   ├─ meta extention.zip                 [Production Pre-Packaged Extension Zip]     │
+│  │   └─ src\ui\side-panel\bridge-client.js [Studio REST API Bridge Client Engine]      │
+│  └─ D:\Projects\chrome extention projects\veo-automation-with Mbmirza\               │
+│      └─ [Google Flow / ImageFX Chrome Side-Panel Automation Extension]                 │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ DRIVE E: (Safe from Windows C: Reinstallation - Permanent Studio Engine & Database)   │
 │  ├─ E:\stickman-video-automation\                                                    │
-│  │   ├─ brainmemory.md                     [Permanent Master Brain Memory]             │
+│  │   ├─ brainmemory.md                     [Permanent Master Brain Memory Copy]        │
 │  │   ├─ STUDIO_V2_COMPLETE_MANUAL.md       [Full Operational Manual]                   │
 │  │   ├─ changes.md                         [Recent Engineering Changelog]              │
 │  │   ├─ Demo\                              [Production Test Pack: 655 prompts, VO, imgs]
@@ -56,20 +69,14 @@ Creating long-form YouTube documentary videos (10 minutes to 2 hours) normally r
 │  │   │   ├─ public\                        [index.html, app_v2.js, styles_v2.css, docs]│
 │  │   │   └─ server\                        [index.js, routes.js, orchestrator, etc.]   │
 │  │   ├─ extensions\                                                                    │
-│  │   │   ├─ meta automation\               [Meta.ai Chrome Extension Bundle]           │
-│  │   │   └─ veo-automation-with Mbmirza\   [Google Flow Chrome Extension Bundle]       │
+│  │   │   ├─ meta automation\               [Replicated Backup of Meta Extension]       │
+│  │   │   └─ veo-automation-with Mbmirza\   [Replicated Backup of Flow Extension]       │
 │  │   ├─ Workers\                           [Worker-W01 to Worker-W10 Isolated Profiles]│
 │  │   └─ Projects\                          [Generated Video Projects & Central Storage]│
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│ DRIVE C: (Operating System Partition - Re-cloned or restored after reinstall)         │
-│  ├─ C:\Users\Ali\Desktop\meta automation\  [Primary Working Directory for Meta Ext]  │
-│  │   ├─ brainmemory.md                     [Permanent Master Brain Memory Copy]        │
-│  │   ├─ STATUS.md                          [System Status & Verification Report]       │
-│  │   ├─ STUDIO_V2_COMPLETE_MANUAL.md       [Full Operational Manual Copy]              │
-│  │   ├─ manifest.json                      [Chrome Manifest V3 Extension Config]       │
-│  │   ├─ worker-config.js                   [Active Worker Profile Switcher]            │
-│  │   └─ src\ui\side-panel\bridge-client.js [Studio REST API Bridge Client Engine]      │
-│  └─ C:\Users\Ali\Downloads\                 [Default Browser Downloads Directory]       │
+│ DRIVE C: (Operating System Partition - SAFE TO FORMAT DURING WINDOWS REINSTALL)       │
+│  ├─ Note: Any files on C:\Users\Ali\Desktop\ can be wiped cleanly with ZERO data loss! │
+│  └─ All work resumes directly from Drive D: and Drive E: without any re-cloning!       │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -165,10 +172,12 @@ The project includes real-world production test assets in `E:\stickman-video-aut
 
 ## 💻 6. STEP-BY-STEP RUNBOOK AFTER FRESH WINDOWS INSTALLATION
 
-If you just installed a fresh copy of Windows, follow these exact steps to get everything running in under 5 minutes:
+If you just installed a fresh copy of Windows, follow these exact steps to resume work directly in under 3 minutes:
 
-### Step 6.1: Verify Drive E: Intact
-* Confirm `E:\stickman-video-automation` exists with all its files, SQLite database, and binaries (`studio/bin/ffmpeg.exe`, `studio/bin/ffprobe.exe`).
+### Step 6.1: Both Drive D: and Drive E: Are Already 100% Preserved!
+* `D:\Projects\chrome extention projects\meta automation` contains the complete extension codebase, git repository, and documentation.
+* `E:\stickman-video-automation` contains the complete Studio Engine, SQLite database, static FFmpeg binaries, and Demo assets.
+* **No downloading or cloning is required!**
 
 ### Step 6.2: Install Software Prerequisites
 1. **Node.js (v20+ LTS or v22+)**: Download and install from [nodejs.org](https://nodejs.org).
@@ -176,21 +185,13 @@ If you just installed a fresh copy of Windows, follow these exact steps to get e
 3. **Google Chrome**: Install standard Chrome browser.
 4. **Python (3.11+)**: Download from [python.org](https://python.org) (ensure "Add python.exe to PATH" is checked).
 
-### Step 6.3: Restore the Meta Automation Repo (Drive C:)
-If Drive C: was formatted, clone the Meta Automation repo onto the Desktop:
-```powershell
-cd C:\Users\Ali\Desktop
-git clone https://github.com/abidalidevv/Meta-Automation-Auto-Meta-on-Meta.ai.git "meta automation"
-```
-*(Alternatively, a complete working copy already lives at `E:\stickman-video-automation\extensions\meta automation`!)*
-
-### Step 6.4: Launch Stickman Studio Daemon
+### Step 6.3: Launch Stickman Studio Daemon
 Open PowerShell or Command Prompt:
 ```powershell
 cd E:\stickman-video-automation\studio
 node server/index.js
 ```
-The server will start and print:
+The server will start immediately and output:
 ```text
 [INFO] [DATABASE] Connected to SQLite database at E:\stickman-video-automation\studio\data\studio.sqlite
 [INFO] [MIGRATIONS] All migrations verified and up to date
@@ -198,21 +199,21 @@ The server will start and print:
 [INFO] [SERVER] REST API available at http://127.0.0.1:45450/api/v1/
 ```
 
-### Step 6.5: Load Chrome Extensions
+### Step 6.4: Load Chrome Extensions Directly from Drive D:
 1. Open Google Chrome.
 2. Navigate to `chrome://extensions`.
 3. Toggle on **Developer mode** in the top-right corner.
 4. Click **Load unpacked** and select:
-   - `C:\Users\Ali\Desktop\meta automation` (or `E:\stickman-video-automation\extensions\meta automation`)
-   - `E:\stickman-video-automation\extensions\veo-automation-with Mbmirza`
-5. The extension icons will appear in your Chrome toolbar. Open the Side Panel to see the Stickman Studio Bridge status (lights up green when connected to port `45450`).
+   - `D:\Projects\chrome extention projects\meta automation`
+   - `D:\Projects\chrome extention projects\veo-automation-with Mbmirza`
+5. The extension icons appear in your Chrome toolbar. Open the Side Panel to see the Stickman Studio Bridge status (lights up green when connected to port `45450`).
 
-### Step 6.6: Open Studio UI
-Open Chrome and navigate to:
-```
-http://localhost:45450
-```
-Everything is pre-configured, database is intact, and you can immediately create projects or run the 10-worker farm!
+### Step 6.5: Open Antigravity Workspace Directly on Drive D: & Drive E:
+When opening Antigravity on fresh Windows:
+* Select Workspace: `D:\Projects\chrome extention projects\meta automation` (for extension development).
+* Or Select Workspace: `E:\stickman-video-automation` (for full studio engine development).
+* Open Chrome to: `http://localhost:45450` for the Studio UI.
+Everything is pre-configured, database is intact, and you are 100% ready to work!
 
 ---
 
@@ -227,7 +228,7 @@ Everything is pre-configured, database is intact, and you can immediately create
   - Simplify project creation to name-only.
   - Restore missing controls in Step 4 Motion and Audio/SFX tabs.
   - Provide an easy way to delete unwanted projects.
-  - Ensure zero data loss when reinstalling Windows.
+  - Permanently save all paths on Drive D: and Drive E: so Windows reinstall causes zero disruption.
 * **Development Methodology:**
   - High speed, rigorous test automation with automated Python verification scripts.
   - Backward compatibility with existing Chrome extension manifests and bridge contracts.
